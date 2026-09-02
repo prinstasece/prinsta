@@ -1195,7 +1195,10 @@
             <div style="font-weight: 700; color: #111; font-size: 0.95rem; margin-bottom: 4px;">Audio Beeps</div>
             <div style="font-size: 0.8rem; color: var(--gray-text);">Enable sound notifications for incoming printing jobs.</div>
           </div>
-          <input type="checkbox" id="notificationToggle" checked style="width: 20px; height: 20px; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button type="button" onclick="testSoundNotification()" style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer;">🔊 Test Sound</button>
+            <input type="checkbox" id="notificationToggle" checked style="width: 20px; height: 20px; cursor: pointer;">
+          </div>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 0 0.5rem 0;">
@@ -1454,96 +1457,110 @@
     let audioUnlocked = false;
 
     function unlockAudio() {
-      if (audioUnlocked) return;
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      audioCtx.resume().then(() => {
-        audioUnlocked = true;
-        console.log('Audio Context unlocked silently.');
-      });
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().then(() => {
+            audioUnlocked = true;
+          });
+        } else {
+          audioUnlocked = true;
+        }
+      } catch (e) {
+        console.warn('Audio unlock warning:', e);
+      }
     }
 
-    // Auto-unlock sound on first user interaction (browser policy requires a gesture)
-    document.addEventListener('click', function autoUnlock() {
-      unlockAudio();
-      document.removeEventListener('click', autoUnlock);
-    }, { once: true });
-    document.addEventListener('keydown', function autoUnlockKey() {
-      unlockAudio();
-      document.removeEventListener('keydown', autoUnlockKey);
-    }, { once: true });
+    // Auto-unlock sound on first user interaction anywhere on the screen
+    ['click', 'touchstart', 'pointerdown', 'keydown'].forEach(evt => {
+      document.addEventListener(evt, function autoUnlockListener() {
+        unlockAudio();
+      }, { passive: true });
+    });
 
-    function playBeep(type = 'success') {
-      const notificationsEnabled = document.getElementById('notificationToggle')
-        ? document.getElementById('notificationToggle').checked : true;
+    function testSoundNotification() {
+      unlockAudio();
+      setTimeout(() => {
+        playBeep('new_order');
+        showAlert('🔊 Playing new order alert sound...', 'info');
+      }, 50);
+    }
+
+    function playBeep(type = 'new_order') {
+      const notifToggle = document.getElementById('notificationToggle');
+      const notificationsEnabled = notifToggle ? notifToggle.checked : true;
       if (!notificationsEnabled) return;
-      if (!audioUnlocked || !audioCtx) return;
 
       try {
-        // Compressor to prevent clipping at max volume
-        const compressor = audioCtx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-3, audioCtx.currentTime);
-        compressor.knee.setValueAtTime(0, audioCtx.currentTime);
-        compressor.ratio.setValueAtTime(4, audioCtx.currentTime);
-        compressor.attack.setValueAtTime(0, audioCtx.currentTime);
-        compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
-        compressor.connect(audioCtx.destination);
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
 
-        if (type === 'success' || type === true) {
-          // Pleasant high-pitched double chirp
-          [0, 0.15].forEach((offset) => {
+        const now = audioCtx.currentTime;
+
+        if (type === 'new_order' || type === 'order') {
+          // Energetic 3-tone chime for incoming print job: 880Hz (A5), 1175Hz (D6), 1568Hz (G6)
+          const notes = [880, 1175, 1568];
+          notes.forEach((freq, idx) => {
+            const startTime = now + (idx * 0.15);
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(compressor);
 
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(1200, audioCtx.currentTime + offset);
+            osc.frequency.setValueAtTime(freq, startTime);
 
-            gain.gain.setValueAtTime(0, audioCtx.currentTime + offset);
-            gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + offset + 0.01);
-            gain.gain.setValueAtTime(1.0, audioCtx.currentTime + offset + 0.1);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + offset + 0.14);
+            // Envelope
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.8, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.28);
 
-            osc.start(audioCtx.currentTime + offset);
-            osc.stop(audioCtx.currentTime + offset + 0.16);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.3);
+          });
+        } else if (type === 'success' || type === true) {
+          // High crisp double chirp
+          [1200, 1600].forEach((freq, idx) => {
+            const startTime = now + (idx * 0.12);
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.6, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.2);
           });
         } else if (type === 'error' || type === false) {
-          // Low-pitched error buzz
+          // Low alert tone
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
-          osc.connect(gain);
-          gain.connect(compressor);
 
           osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(220, now);
 
-          gain.gain.setValueAtTime(0, audioCtx.currentTime);
-          gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 0.01);
-          gain.gain.setValueAtTime(1.0, audioCtx.currentTime + 0.35);
-          gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.45);
+          gain.gain.setValueAtTime(0.5, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
-          osc.start(audioCtx.currentTime);
-          osc.stop(audioCtx.currentTime + 0.4);
-        } else {
-          // Play 3 sharp loud beeps at 0ms, 220ms, 440ms (for new orders)
-          [0, 0.22, 0.44].forEach((offset, i) => {
-            const osc  = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(compressor);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
 
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(i === 1 ? 700 : 1000, audioCtx.currentTime + offset);
-
-            // Max gain = 1.0 (full volume)
-            gain.gain.setValueAtTime(0, audioCtx.currentTime + offset);
-            gain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + offset + 0.01);
-            gain.gain.setValueAtTime(1.0, audioCtx.currentTime + offset + 0.14);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + offset + 0.18);
-
-            osc.start(audioCtx.currentTime + offset);
-            osc.stop(audioCtx.currentTime + offset + 0.2);
-          });
+          osc.start(now);
+          osc.stop(now + 0.38);
         }
       } catch (err) {
         console.warn('Audio play failed:', err);
@@ -1648,13 +1665,16 @@
     function detectNewOrders(orders) {
       let foundNew = false;
       orders.forEach(o => {
-        if (o.status === 'waiting' && o.orderType !== 'xerox' && !knownOrders.has(o._id)) {
-          knownOrders.add(o._id);
+        const id = String(o._id || o.id || '');
+        if (id && o.status === 'waiting' && o.orderType !== 'xerox' && !knownOrders.has(id)) {
+          knownOrders.add(id);
           foundNew = true;
+        } else if (id && !knownOrders.has(id)) {
+          knownOrders.add(id);
         }
       });
       if (foundNew && !isFirstLoad) {
-        playBeep();
+        playBeep('new_order');
       }
       isFirstLoad = false;
     }
@@ -2262,7 +2282,10 @@
       sseSource.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
-          if (data.type === 'new-order' || data.type === 'order-updated') {
+          if (data.type === 'new-order') {
+            playBeep('new_order');
+            loadQueue();
+          } else if (data.type === 'order-updated') {
             loadQueue();
           }
           if (data.type === 'shop-status') {

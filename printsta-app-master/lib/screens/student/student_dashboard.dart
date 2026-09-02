@@ -12,6 +12,7 @@ import '../../services/auth_service.dart';
 import '../../constants/api_constants.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../services/notification_service.dart';
 
 
 class CartItem {
@@ -59,6 +60,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   void initState() {
     super.initState();
     _loadCartFromPrefs();
+    NotificationService.startPolling();
   }
 
   @override
@@ -1740,6 +1742,7 @@ class _OrdersTabState extends State<OrdersTab> {
       final data = jsonDecode(res.body);
       if (data['success'] == true && mounted) {
         setState(() => _orders = data['orders'] ?? []);
+        NotificationService.checkOrderStatusAndNotify();
       }
     } catch (_) {}
   }

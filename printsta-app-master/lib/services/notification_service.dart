@@ -6,12 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
 
 /// Handles local notifications and in-app order-status polling.
-///
-/// Design:
-///  • No background service plugin → no persistent "monitoring" notification.
-///  • Polls the backend every 60 seconds while the app is running.
-///  • Shows ONE notification when an order first becomes 'ready'.
-///  • Never shows the same order's notification twice (persisted via SharedPrefs).
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static Timer? _pollTimer;
@@ -20,27 +14,46 @@ class NotificationService {
 
   /// Call once from main() after WidgetsFlutterBinding.ensureInitialized().
   static Future<void> init() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_notification');
-    await _plugin.initialize(
-      const InitializationSettings(android: androidSettings),
-    );
+    try {
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_notification');
+      await _plugin.initialize(
+        const InitializationSettings(android: androidSettings),
+      );
 
-    // Request POST_NOTIFICATIONS permission (Android 13+)
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+      final androidImplementation = _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        // Request POST_NOTIFICATIONS permission (Android 13+)
+        await androidImplementation.requestNotificationsPermission();
+
+        // Create high-importance notification channel explicitly
+        const AndroidNotificationChannel channel = AndroidNotificationChannel(
+          'printsta_ready_channel_v2',
+          'Print Ready Alerts',
+          description: 'Notifies you immediately when your document is printed and ready to collect',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          showBadge: true,
+        );
+        await androidImplementation.createNotificationChannel(channel);
+      }
+    } catch (e) {
+      print('NotificationService init error: $e');
+    }
   }
 
   // ── Polling ───────────────────────────────────────────────────────────────
 
-  /// Start polling – call this when a student logs in.
+  /// Start polling – call this when a student logs in or opens dashboard.
   static void startPolling() {
     _pollTimer?.cancel();
-    // Run immediately, then every 60 seconds
+    // Run immediately, then every 5 seconds for fast real-time status alerts
     checkOrderStatusAndNotify();
     _pollTimer = Timer.periodic(
-      const Duration(seconds: 60),
+      const Duration(seconds: 5),
       (_) => checkOrderStatusAndNotify(),
     );
   }
@@ -59,8 +72,6 @@ class NotificationService {
       final token = prefs.getString('token');
       if (token == null || token.isEmpty) return;
 
-      // URL is hardcoded — no SharedPreferences load needed
-
       final response = await http
           .get(
             Uri.parse(ApiConstants.myOrders),
@@ -69,7 +80,7 @@ class NotificationService {
               'Content-Type': 'application/json',
             },
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return;
 
@@ -105,25 +116,30 @@ class NotificationService {
 
   static Future<void> _showReadyNotification(
       int id, String tokenNumber) async {
-    const details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        'printsta_ready_channel',
-        'Print Ready Alerts',
-        channelDescription:
-            'Notifies you when your document is printed and ready to collect',
-        importance: Importance.max,
-        priority: Priority.high,
-        playSound: true,
-        enableVibration: true,
-        icon: '@mipmap/ic_notification',
-        largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_notification'),
-      ),
-    );
-    await _plugin.show(
-      id,
-      'Print Job Ready ✅',
-      'Token $tokenNumber – Your document is printed. Please collect it.',
-      details,
-    );
+    try {
+      const details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'printsta_ready_channel_v2',
+          'Print Ready Alerts',
+          channelDescription:
+              'Notifies you when your document is printed and ready to collect',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+          icon: '@mipmap/ic_notification',
+          largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_notification'),
+        ),
+      );
+      await _plugin.show(
+        id,
+        'Print Job Ready! ✅',
+        'Token $tokenNumber — Your document has been printed and is ready for pickup!',
+        details,
+      );
+    } catch (e) {
+      print('Error showing ready notification: $e');
+    }
   }
 }
