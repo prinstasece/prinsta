@@ -49,7 +49,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _init() async {
     final start = DateTime.now();
-    await ApiConstants.loadBaseUrl();
+    // URL is hardcoded — no need to load from SharedPreferences
     
     // Initialise notifications + WorkManager background polling
     try {

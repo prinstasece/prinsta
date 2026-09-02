@@ -59,7 +59,7 @@ class NotificationService {
       final token = prefs.getString('token');
       if (token == null || token.isEmpty) return;
 
-      await ApiConstants.loadBaseUrl();
+      // URL is hardcoded — no SharedPreferences load needed
 
       final response = await http
           .get(
