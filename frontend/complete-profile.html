@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Profile - Printsta SECE</title>
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Shared Design System stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Auto-detected info card */
+    .auto-detected-card {
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border: 1px solid #86efac;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 1.25rem;
+    }
+    .auto-detected-card .auto-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      color: #15803d;
+      margin-bottom: 6px;
+    }
+    .auto-detected-row {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .auto-detected-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .auto-detected-item .item-name {
+      font-size: 0.75rem;
+      color: #4b5563;
+      font-weight: 600;
+    }
+    .auto-detected-item .item-value {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #1a2a4a;
+    }
+    .auto-detected-unknown {
+      background: #fefce8;
+      border: 1px solid #fde68a;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      color: #92400e;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Dynamic Alert Notification Popup -->
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Header Section -->
+  <header class="header">
+    <img src="assets/sece-logo.png" alt="SECE Logo" class="sece-logo-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'60\' height=\'60\' viewBox=\'0 0 60 60\'><rect width=\'60\' height=\'60\' fill=\'%231a2a4a\' rx=\'10\'/><text x=\'50%\' y=\'55%\' font-family=\'sans-serif\' font-size=\'10\' fill=\'white\' text-anchor=\'middle\' font-weight=\'bold\'>SECE</text></svg>'">
+    <a href="index.html" class="wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+  </header>
+
+  <!-- Centered Form Container -->
+  <main class="form-container">
+    <h1 class="page-heading">Complete your profile</h1>
+    <p style="text-align: center; font-size: 0.85rem; color: var(--gray-text); margin-bottom: 1.5rem; margin-top: -1rem;">
+      Almost done! Just your register number and phone to get started.
+    </p>
+
+    <!-- Auto-detected department & batch (read-only display) -->
+    <div id="autoDetectedCard" class="auto-detected-card" style="display:none;">
+      <div class="auto-label"></div>
+      <div class="auto-detected-row">
+        <div class="auto-detected-item">
+          <span class="item-name">Department</span>
+          <span class="item-value" id="displayDept">—</span>
+        </div>
+        <div class="auto-detected-item">
+          <span class="item-name">Batch</span>
+          <span class="item-value" id="displayBatch">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="unknownDeptCard" class="auto-detected-unknown" style="display:none;">
+      Department and Batch could not be detected from your email. Please contact the admin.
+    </div>
+
+    <form id="profileForm">
+      <!-- Register Number -->
+      <div class="form-group">
+        <label for="registerNumber">Register Number <span style="color:#64748b;font-weight:400;font-size:0.8rem;">(12 digits, e.g. 722825106074)</span></label>
+        <div class="input-wrapper">
+          <input type="text" id="registerNumber" placeholder="7228YYDDDNNN (12 digits)" maxlength="12" required autocomplete="off" oninput="onRegNumInput()">
+        </div>
+        <div id="regNumFeedback" style="font-size:0.8rem;font-weight:600;margin-top:4px;min-height:18px;"></div>
+      </div>
+
+      <!-- Mobile Number -->
+      <div class="form-group">
+        <label for="phone">Mobile No. :</label>
+        <div class="input-wrapper">
+          <input type="text" id="phone" placeholder="+91 98596 58000" required>
+        </div>
+      </div>
+
+      <!-- Submit Profile Completion -->
+      <button type="submit" class="btn-primary" style="margin-top: 1.5rem;">Save &amp; Continue</button>
+    </form>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('studentToken');
+    if (!token) { window.location.href = 'index.html'; }
+
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.innerText = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => { popup.style.display = 'none'; }, 4000);
+    }
+
+    // Fetch student profile and display auto-detected dept/batch
+    async function checkProfile() {
+      try {
+        const response = await fetch(`${API_BASE}/auth/student/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          const student = data.student;
+
+          // If register number is already filled, profile is complete — skip this page
+          if (student.registerNumber && student.registerNumber.trim() !== '') {
+            window.location.href = 'student.html';
+            return;
+          }
+
+          // Pre-fill phone if available
+          if (student.phone && student.phone !== 'N/A') {
+            document.getElementById('phone').value = student.phone;
+          }
+
+          // Show auto-detected dept/batch or warning card
+          if (student.department && student.batch) {
+            document.getElementById('displayDept').textContent  = student.department;
+            document.getElementById('displayBatch').textContent = student.batch;
+            document.getElementById('autoDetectedCard').style.display = 'block';
+          } else {
+            document.getElementById('unknownDeptCard').style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error('Error checking profile completeness:', err);
+      }
+    }
+
+    // Submit: only send registerNumber + phone (dept/batch already saved during Google login)
+    const profileForm = document.getElementById('profileForm');
+    profileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const registerNumber = document.getElementById('registerNumber').value.trim();
+      const phone          = document.getElementById('phone').value.trim();
+
+      // ── Register Number Dept-Code Validation ──
+      const REG_DEPT_CODES = {
+        '205': 'IT', '149': 'CYBER', '148': 'AIML', '251': 'CSE',
+        '105': 'EEE', '114': 'MECH', '244': 'CSBS', '134': 'CCE',
+        '106': 'ECE', '243': 'AIDS'
+      };
+
+      function validateRegNum(reg) {
+        if (reg.length !== 12)       return { valid: false, error: 'Register number must be exactly 12 digits.' };
+        if (!/^\d{12}$/.test(reg))   return { valid: false, error: 'Register number must contain digits only.' };
+        if (!reg.startsWith('7228')) return { valid: false, error: 'First 4 digits must be 7228 (SECE college code).' };
+        const deptCode = reg.substring(6, 9);
+        if (!REG_DEPT_CODES[deptCode]) return { valid: false, error: `Dept code "${deptCode}" is not valid. Valid: IT-205, ECE-106, CSE-251, AIML-148, AIDS-243, EEE-105, MECH-114, CSBS-244, CCE-134, CYBER-149.` };
+        return { valid: true, dept: REG_DEPT_CODES[deptCode] };
+      }
+
+      function onRegNumInput() {
+        const reg = document.getElementById('registerNumber').value.trim();
+        const fb  = document.getElementById('regNumFeedback');
+        if (!reg) { fb.textContent = ''; return; }
+        const result = validateRegNum(reg);
+        if (!result.valid) {
+          fb.textContent = result.error;
+          fb.style.color = '#ef4444';
+        } else {
+          fb.textContent = `✓ Dept: ${result.dept}`;
+          fb.style.color = '#16a34a';
+        }
+      }
+
+      if (!registerNumber) {
+        showAlert('Please enter your register number.', 'error');
+        return;
+      }
+
+      const regResult = validateRegNum(registerNumber);
+      if (!regResult.valid) {
+        showAlert(regResult.error, 'error');
+        document.getElementById('registerNumber').focus();
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/student/profile`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ registerNumber, phone })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showAlert('Academic profile completed! Loading dashboard...', 'success');
+          setTimeout(() => { window.location.href = 'student.html'; }, 1500);
+        } else {
+          showAlert(data.message || 'Failed to update profile.', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Could not connect to the server.', 'error');
+      }
+    });
+
+    checkProfile();
+  </script>
+</body>
+</html>

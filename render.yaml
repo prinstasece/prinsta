@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: printsta-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://kavingsln_db_user:2MESA10OUXkDOBBv@cluster1.3mlizdb.mongodb.net/printsta?appName=Cluster1
+      - key: JWT_SECRET
+        value: super_secret_jwt_key_secret
+      - key: RAZORPAY_KEY_ID
+        value: rzp_test_SwR8ahOktg8jMQ
+      - key: RAZORPAY_KEY_SECRET
+        value: uRAJgzPthR4ZqhyqLju7RD7P
+      - key: EMAIL_USER
+        value: kavin.gs2025ece@sece.ac.in
+      - key: EMAIL_APP_PASSWORD
+        value: begbxbfwokrelbss
+      - key: STUDENT_JWT_SECRET
+        value: student_printsta_sece_jwt_2025
+      - key: STAFF_JWT_SECRET
+        value: staff_printsta_sece_jwt_2025
+      - key: ADMIN_JWT_SECRET
+        value: admin_printsta_sece_jwt_2025
+      - key: STAFF_REGISTER_CODE
+        value: SECE@43W0M8
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: sece@print

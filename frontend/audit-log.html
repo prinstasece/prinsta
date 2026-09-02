@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Log - Printsta Operator</title>
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Shared Design System stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root {
+      --navy: #1a2a4a;
+      --navy-dark: #0f1a30;
+      --gold: #f5a623;
+      --white: #ffffff;
+      --off-white: #f8f9fc;
+      --gray-100: #f0f2f7;
+      --gray-400: #9ba3b8;
+      --gray-600: #5a6480;
+      --border: #e2e6ef;
+    }
+
+    body, body.admin-body {
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+      background-color: var(--off-white);
+      color: #111;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: block;
+    }
+
+    * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 240px;
+      background-color: var(--navy-dark);
+      color: var(--white);
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding: 0 0.5rem;
+    }
+
+    .sidebar-logo img { height: 32px; width: auto; }
+
+    .sidebar-wordmark {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .sidebar-wordmark .prin { color: var(--white); }
+    .sidebar-wordmark .sta { color: var(--gold); }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      color: var(--gray-400);
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-link:hover, .sidebar-link.active {
+      color: var(--white);
+      background-color: rgba(255,255,255,0.08);
+    }
+
+    .sidebar-link.active {
+      border-left: 4px solid var(--gold);
+      padding-left: calc(1rem - 4px);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar-logout {
+      background: transparent;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    .sidebar-logout:hover {
+      background: var(--gold);
+      color: var(--navy-dark);
+    }
+
+    .mobile-header {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background-color: #111;
+      color: var(--white);
+      padding: 0 1rem;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 90;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .hamburger-btn {
+      background: none;
+      border: none;
+      color: var(--white);
+      font-size: 1.75rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 95;
+    }
+
+    .main-content {
+      margin-left: 240px;
+      padding: 2rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 992px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-backdrop.show { display: block; }
+      .mobile-header { display: flex; }
+      .main-content {
+        margin-left: 0;
+        padding-top: calc(60px + 1.5rem);
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+
+    .content-header {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      text-align: left;
+    }
+
+    .content-header h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #111;
+      margin-bottom: 4px;
+    }
+
+    .content-header p {
+      font-size: 0.9rem;
+      color: var(--gray-text);
+      font-weight: 600;
+    }
+
+    /* Table & Container styles */
+    .log-container {
+      background-color: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+
+    .history-table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 100%;
+      margin-bottom: 1.5rem;
+      background: white;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .history-table th, .history-table td {
+      padding: 14px 16px;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-table th {
+      background-color: #f8f9fc;
+      color: #333;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .history-table td {
+      color: #111;
+      font-weight: 600;
+    }
+
+    /* Empty state card */
+    .empty-state-card {
+      background: linear-gradient(135deg, #1a2a4a 0%, #243a6a 100%);
+      color: white;
+      border-radius: 12px;
+      padding: 3rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 4px 15px rgba(26, 42, 74, 0.1);
+    }
+
+    .empty-state-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    .empty-state-desc {
+      font-size: 0.9rem;
+      opacity: 0.85;
+      max-width: 400px;
+    }
+
+    /* Rates styling tags */
+    .rate-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background-color: #f3f4f6;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .rate-badge.new {
+      background-color: #fff8e6;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    .rate-detail {
+      font-size: 0.8rem;
+      color: var(--gray-text);
+    }
+
+    /* Pagination container styles */
+    .pagination-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      margin-top: 1.5rem;
+    }
+
+    .pagination-btn {
+      background-color: var(--white);
+      border: 1px solid var(--navy);
+      color: #111;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+      background-color: rgba(26, 42, 74, 0.05);
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: var(--border);
+      color: var(--gray-text);
+    }
+
+    .page-indicator {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #111;
+      padding: 0 10px;
+    }
+  </style>
+</head>
+<body class="admin-body">
+
+  <!-- Dynamic Alert Notification Popup -->
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Left Sidebar -->
+  <aside class="sidebar" id="adminSidebar">
+    <div class="sidebar-logo">
+      <a href="admin.html" class="sidebar-wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="admin.html" class="sidebar-link" data-page="dashboard">Dashboard</a>
+      <a href="pricing.html" class="sidebar-link" data-page="pricing">Pricing</a>
+      <a href="earnings.html" class="sidebar-link" data-page="earnings">Earnings</a>
+      <a href="orders-list.html" class="sidebar-link" data-page="orders-list">Orders</a>
+      <a href="students.html" class="sidebar-link" data-page="students">Students</a>
+      <a href="audit-log.html" class="sidebar-link" data-page="audit-log">Activity Log</a>
+      <a href="resources.html" class="sidebar-link">Resources</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-logout" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+    <a href="admin.html" class="sidebar-wordmark" style="font-size: 1.25rem;"><span class="prin">prin</span><span class="sta">sta</span></a>
+    <div style="width: 28px;"></div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+      
+      <!-- Content Header -->
+      <header class="content-header">
+        <h1>Activity Log</h1>
+        <p>Audit trail of all system pricing configuration changes</p>
+      </header>
+
+      <!-- Logs Grid Container -->
+      <div class="log-container" id="logContainer">
+        
+        <!-- Table view wrapper -->
+        <div class="history-table-wrapper" id="tableWrapper" style="display:none;">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Date &amp; Time</th>
+                <th>Admin</th>
+                <th>Old Rates</th>
+                <th>New Rates</th>
+                <th>IP Address</th>
+              </tr>
+            </thead>
+            <tbody id="logTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty state placeholder -->
+        <div class="empty-state-card" id="emptyState" style="display:none;">
+          <div class="empty-state-title">No Pricing Changes Recorded</div>
+          <div class="empty-state-desc">Every pricing adjustment saved with password re-confirmation will be recorded in this immutable audit log.</div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="pagination-container" id="paginationControls" style="display:none;">
+          <button class="pagination-btn" id="prevPageBtn" onclick="changePage(-1)">Previous</button>
+          <span class="page-indicator" id="pageIndicator">Page 1 of 1</span>
+          <button class="pagination-btn" id="nextPageBtn" onclick="changePage(1)">Next</button>
+        </div>
+
+      </div>
+
+  </main>
+
+  <script>
+    // Verify admin token
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      window.location.href = 'admin-login.html';
+    }
+
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+    const ACTIVE_PAGE_NAME = 'audit-log';
+    let currentPage = 1;
+    let totalPages = 1;
+
+    // Sidebar toggle for mobile
+    function toggleSidebar() {
+      const sidebar = document.getElementById('adminSidebar');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      sidebar.classList.toggle('open');
+      backdrop.classList.toggle('show');
+    }
+
+    // Mark active sidebar link
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      if (link.dataset.page === ACTIVE_PAGE_NAME) {
+        link.classList.add('active');
+      }
+    });
+
+    // Clear session & log out
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'admin-login.html';
+    }
+
+    // Show toast alerts
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.innerText = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => {
+        popup.style.display = 'none';
+      }, 4000);
+    }
+
+    // Fetch and display log entries
+    async function loadAuditLog(page = 1) {
+      try {
+        const res = await fetch(`${API_BASE}/admin/audit-log?page=${page}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          logout();
+          return;
+        }
+
+        const data = await res.json();
+        if (data.success) {
+          currentPage = data.pagination.page;
+          totalPages = data.pagination.totalPages || 1;
+          renderLogs(data.entries);
+        } else {
+          showAlert(data.message || 'Failed to fetch activity logs.', 'error');
+        }
+      } catch (err) {
+        console.error('Failed to load audit logs:', err);
+        showAlert('Network error occurred while fetching logs.', 'error');
+      }
+    }
+
+    // Render log rows into table
+    function renderLogs(entries) {
+      const tableWrapper = document.getElementById('tableWrapper');
+      const emptyState = document.getElementById('emptyState');
+      const tableBody = document.getElementById('logTableBody');
+      const paginationControls = document.getElementById('paginationControls');
+
+      if (!entries || entries.length === 0) {
+        tableWrapper.style.display = 'none';
+        paginationControls.style.display = 'none';
+        emptyState.style.display = 'flex';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tableWrapper.style.display = 'block';
+      paginationControls.style.display = 'flex';
+      tableBody.innerHTML = '';
+
+      entries.forEach(entry => {
+        const tr = document.createElement('tr');
+        
+        // Format timestamp
+        const timeStr = new Date(entry.timestamp).toLocaleString('en-IN', {
+          day: 'numeric', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: true
+        });
+
+        // Parse changes safely
+        const c = entry.changes || {};
+        const bwS_Old = c.bwSingleRate?.old !== undefined ? c.bwSingleRate.old : '-';
+        const bwS_New = c.bwSingleRate?.new !== undefined ? c.bwSingleRate.new : '-';
+        const bwD_Old = c.bwDoubleRate?.old !== undefined ? c.bwDoubleRate.old : '-';
+        const bwD_New = c.bwDoubleRate?.new !== undefined ? c.bwDoubleRate.new : '-';
+
+        const colS_Old = c.colorSingleRate?.old !== undefined ? c.colorSingleRate.old : '-';
+        const colS_New = c.colorSingleRate?.new !== undefined ? c.colorSingleRate.new : '-';
+        const colD_Old = c.colorDoubleRate?.old !== undefined ? c.colorDoubleRate.old : '-';
+        const colD_New = c.colorDoubleRate?.new !== undefined ? c.colorDoubleRate.new : '-';
+
+        tr.innerHTML = `
+          <td>${timeStr}</td>
+          <td><span style="font-weight:700;">${entry.adminUsername || 'admin'}</span></td>
+          <td>
+            <div class="rate-detail">B&amp;W Single: ₹${bwS_Old}</div>
+            <div class="rate-detail">B&amp;W Double: ₹${bwD_Old}</div>
+            <div class="rate-detail">Color Single: ₹${colS_Old}</div>
+            <div class="rate-detail">Color Double: ₹${colD_Old}</div>
+          </td>
+          <td>
+            <div class="rate-badge new">B&amp;W Single: ₹${bwS_New}</div>
+            <div class="rate-badge new">B&amp;W Double: ₹${bwD_New}</div>
+            <div class="rate-badge new">Color Single: ₹${colS_New}</div>
+            <div class="rate-badge new">Color Double: ₹${colD_New}</div>
+          </td>
+          <td><code style="font-family:monospace; font-size:0.85rem; color:#4b5563;">${entry.ipAddress || 'unknown'}</code></td>
+        `;
+        tableBody.appendChild(tr);
+      });
+
+      // Update pagination display
+      document.getElementById('pageIndicator').innerText = `Page ${currentPage} of ${totalPages}`;
+      document.getElementById('prevPageBtn').disabled = (currentPage <= 1);
+      document.getElementById('nextPageBtn').disabled = (currentPage >= totalPages);
+    }
+
+    // Pagination helper
+    function changePage(direction) {
+      const targetPage = currentPage + direction;
+      if (targetPage >= 1 && targetPage <= totalPages) {
+        loadAuditLog(targetPage);
+      }
+    }
+
+    // Initial load
+    loadAuditLog(currentPage);
+  </script>
+
+  
+
+</body>
+</html>

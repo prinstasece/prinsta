@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earnings History - Printsta Operator</title>
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Shared Design System stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root {
+      --navy: #1a2a4a;
+      --navy-dark: #0f1a30;
+      --gold: #f5a623;
+      --white: #ffffff;
+      --off-white: #f8f9fc;
+      --gray-100: #f0f2f7;
+      --gray-400: #9ba3b8;
+      --gray-600: #5a6480;
+      --border: #e2e6ef;
+    }
+
+    body, body.admin-body {
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+      background-color: var(--off-white);
+      color: #111;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: block;
+    }
+
+    * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 240px;
+      background-color: var(--navy-dark);
+      color: var(--white);
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding: 0 0.5rem;
+    }
+
+    .sidebar-logo img { height: 32px; width: auto; }
+
+    .sidebar-wordmark {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .sidebar-wordmark .prin { color: var(--white); }
+    .sidebar-wordmark .sta { color: var(--gold); }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      color: var(--gray-400);
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-link:hover, .sidebar-link.active {
+      color: var(--white);
+      background-color: rgba(255,255,255,0.08);
+    }
+
+    .sidebar-link.active {
+      border-left: 4px solid var(--gold);
+      padding-left: calc(1rem - 4px);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar-logout {
+      background: transparent;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    .sidebar-logout:hover {
+      background: var(--gold);
+      color: var(--navy-dark);
+    }
+
+    .mobile-header {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background-color: #111;
+      color: var(--white);
+      padding: 0 1rem;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 90;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .hamburger-btn {
+      background: none;
+      border: none;
+      color: var(--white);
+      font-size: 1.75rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 95;
+    }
+
+    .main-content {
+      margin-left: 240px;
+      padding: 2rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 992px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-backdrop.show { display: block; }
+      .mobile-header { display: flex; }
+      .main-content {
+        margin-left: 0;
+        padding-top: calc(60px + 1.5rem);
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+
+    /* Summary Row Cards styling */
+    .summary-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      column-gap: 1.5rem;
+      row-gap: 1rem;
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+
+    .stats-card {
+      background-color: var(--white);
+      border-radius: 10px;
+      padding: 1.5rem 2rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: all 0.3s ease;
+      border: 1px solid var(--border);
+    }
+
+    .stats-num {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #111;
+      margin-bottom: 4px;
+    }
+
+    .stats-label {
+      font-size: 0.8rem;
+      color: var(--gray-text);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stats-subtext {
+      font-size: 0.78rem;
+      color: var(--gray-text);
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    /* ---- Earnings History Panel ---- */
+    .earnings-history-card {
+      background-color: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+
+    .earnings-history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .earnings-history-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #111;
+    }
+
+    .btn-export-csv {
+      background-color: var(--gold);
+      color: #1a2a4a;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-export-csv:hover {
+      background-color: #e6951a;
+    }
+
+    /* Bar chart container */
+    .chart-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+      height: 200px;
+      margin-bottom: 2rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
+      gap: 0.5rem;
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    .chart-bar-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 30px;
+      max-width: 60px;
+    }
+
+    .chart-bar-value {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .chart-bar {
+      background-color: var(--navy);
+      width: 100%;
+      border-radius: 4px 4px 0 0;
+      transition: height 0.3s ease;
+      min-height: 2px;
+      position: relative;
+    }
+
+    .chart-bar:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--navy);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: bold;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .chart-bar.highest {
+      background-color: var(--gold);
+    }
+
+    .chart-bar-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--gray-text);
+      margin-top: 8px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .history-table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .history-table th, .history-table td {
+      padding: 14px 16px;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-table th {
+      background-color: #f8f9fc;
+      color: #333;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .history-table td {
+      color: #111;
+      font-weight: 600;
+    }
+
+    /* Sortable Header styles */
+    .sortable-th {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s;
+    }
+
+    .sortable-th:hover {
+      background-color: #f1f3f7;
+    }
+
+    .sort-indicator {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 0.78rem;
+    }
+
+    /* ---- Pagination ---- */
+    .pagination-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .pagination-btn {
+      background-color: var(--white);
+      border: 1px solid var(--navy);
+      color: #111;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+      background-color: rgba(26, 42, 74, 0.05);
+    }
+
+    .pagination-btn.active {
+      background-color: var(--gold);
+      color: var(--white);
+      border-color: var(--gold);
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: var(--border);
+      color: var(--gray-text);
+    }
+
+    /* Toolbar Containers */
+    .toolbar-container {
+      display: flex;
+      gap: 1rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .select-wrapper {
+      min-width: 150px;
+    }
+
+    .toolbar-select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background-color: var(--white);
+      color: #111;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+
+    .toolbar-select:focus {
+      border-color: #111;
+    }
+  </style>
+  <!-- SheetJS Library for professional Excel (.xlsx) exports -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="admin-body">
+
+  <!-- Dynamic Alert Notification Popup -->
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Left Sidebar -->
+  <aside class="sidebar" id="adminSidebar">
+    <div class="sidebar-logo">
+      <a href="admin.html" class="sidebar-wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="admin.html" class="sidebar-link" data-page="dashboard">Dashboard</a>
+      <a href="pricing.html" class="sidebar-link" data-page="pricing">Pricing</a>
+      <a href="earnings.html" class="sidebar-link" data-page="earnings">Earnings</a>
+      <a href="orders-list.html" class="sidebar-link" data-page="orders-list">Orders</a>
+      <a href="students.html" class="sidebar-link" data-page="students">Students</a>
+      <a href="audit-log.html" class="sidebar-link" data-page="audit-log">Activity Log</a>
+      <a href="resources.html" class="sidebar-link">Resources</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-logout" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+    <a href="admin.html" class="sidebar-wordmark" style="font-size: 1.25rem;"><span class="prin">prin</span><span class="sta">sta</span></a>
+    <div style="width: 28px;"></div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+
+      
+      <!-- Content Header -->
+      <header class="content-header">
+        <div class="content-header-title">
+          <h1>Earnings History</h1>
+          <p>Monitor shop revenue metrics and spooled prints volume</p>
+        </div>
+        <button type="button" class="btn-export-csv" onclick="exportEarningsExcel()">Export to Excel</button>
+      </header>
+
+      <!-- Stats Summary Row Cards (CHANGE 1: Removed week/month cards, only Today's Earnings remains) -->
+      <section class="summary-row" style="max-width: 400px;">
+        <div class="stats-card">
+          <div class="stats-num" id="todayEarnings">₹0</div>
+          <div class="stats-label">Today's Earnings</div>
+          <div class="stats-subtext" id="todayOrders">0 orders</div>
+        </div>
+      </section>
+
+      <!-- Date Range Filter Dropdown toolbar (CHANGE 1) -->
+      <section class="toolbar-container">
+        <div class="select-wrapper">
+          <select id="earningsDateRangeSelect" class="toolbar-select" onchange="handleEarningsRangeChange()">
+            <option value="today">Today</option>
+            <option value="7days" selected>Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+        
+        <div id="customDateRangePickers" style="display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label style="font-weight: 700; font-size: 0.85rem; color: #111; margin-left: 0.5rem;">From:</label>
+          <input type="date" id="pickerFrom" class="toolbar-select" style="max-width: 155px; padding: 8px 10px;" onchange="filterDataByRange()">
+          <label style="font-weight: 700; font-size: 0.85rem; color: #111;">To:</label>
+          <input type="date" id="pickerTo" class="toolbar-select" style="max-width: 155px; padding: 8px 10px;" onchange="filterDataByRange()">
+        </div>
+      </section>
+
+      <!-- Earnings History Bar Chart Panel -->
+      <section class="earnings-history-card">
+        <div class="earnings-history-header">
+          <div class="earnings-history-title" id="chartTitle"> Daily Revenue</div>
+        </div>
+        
+        <!-- Bar Chart -->
+        <div class="chart-container" id="earningsChart">
+          <!-- Bars dynamically rendered -->
+          <div style="color: var(--gray-text); font-weight: 600; padding: 2rem;">Loading chart data...</div>
+        </div>
+        
+        <!-- History Table Section -->
+        <div class="earnings-history-header" style="margin-top: 2rem; margin-bottom: 1rem;">
+          <div class="earnings-history-title">Revenue Ledger List</div>
+        </div>
+
+        <div class="history-table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th class="sortable-th" onclick="sortHistory('date')">
+                  Date <span class="sort-indicator" id="ind-date">▼</span>
+                </th>
+                <th class="sortable-th" onclick="sortHistory('orders')">
+                  Total Orders <span class="sort-indicator" id="ind-orders"></span>
+                </th>
+                <th class="sortable-th" onclick="sortHistory('earnings')">
+                  Total Earnings <span class="sort-indicator" id="ind-earnings"></span>
+                </th>
+                <th class="sortable-th" onclick="sortHistory('avg')">
+                  Avg per Order <span class="sort-indicator" id="ind-avg"></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="earningsTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--gray-text);">Loading earnings history...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table Pagination Controls -->
+        <div class="pagination-container" id="tablePaginationControls">
+          <!-- Dynamic pagination buttons -->
+        </div>
+
+      </section>
+
+
+    </main>
+  </div>
+
+  <script>
+    // Redirect immediately to admin-login.html if token missing
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      window.location.href = 'admin-login.html';
+    }
+
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+    const ACTIVE_PAGE_NAME = 'earnings';
+
+    // Sidebar toggle for mobile
+    function toggleSidebar() {
+      const sidebar = document.getElementById('adminSidebar');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      sidebar.classList.toggle('open');
+      backdrop.classList.toggle('show');
+    }
+
+    // Mark active sidebar link
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      if (link.dataset.page === ACTIVE_PAGE_NAME) {
+        link.classList.add('active');
+      }
+    });
+
+    // Handle logout action
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'admin-login.html';
+    }
+
+    // Helper to display alert popups
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.innerText = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => {
+        popup.style.display = 'none';
+      }, 4000);
+    }
+
+    // State Variables
+    let earningsHistory = []; 
+    let currentFilteredData = []; // subset selected by dropdown
+    let sortField = 'date'; // default
+    let sortAscending = false; // default descending (newest first)
+    
+    let currentTablePage = 1;
+    const tableItemsPerPage = 15;
+
+    // Fetch summaries and history on startup
+    async function loadSummary() {
+      try {
+        const res = await fetch(`${API_BASE}/earnings/summary`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const sum = data.summary;
+          
+          document.getElementById('todayEarnings').innerText = `₹${sum.today.earnings % 1 === 0 ? sum.today.earnings : sum.today.earnings.toFixed(2)}`;
+          document.getElementById('todayOrders').innerText = `${sum.today.count} order${sum.today.count !== 1 ? 's' : ''}`;
+        }
+      } catch (err) {
+        console.error('Failed to load summary card:', err);
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch(`${API_BASE}/earnings/history`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          earningsHistory = data.history;
+          // Apply initial filter (Last 7 Days)
+          filterDataByRange();
+        }
+      } catch (err) {
+        console.error('Failed to load history list:', err);
+        document.getElementById('earningsTableBody').innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--gray-text);">Failed to load history ledger data.</td></tr>';
+      }
+    }
+
+    // Dropdown selection change handler (CHANGE 1)
+    function handleEarningsRangeChange() {
+      const select = document.getElementById('earningsDateRangeSelect');
+      const pickers = document.getElementById('customDateRangePickers');
+      if (select.value === 'custom') {
+        pickers.style.display = 'flex';
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('pickerFrom').value = todayStr;
+        document.getElementById('pickerTo').value = todayStr;
+      } else {
+        pickers.style.display = 'none';
+      }
+      filterDataByRange();
+    }
+
+    // Local data range filtering (CHANGE 1)
+    function filterDataByRange() {
+      const select = document.getElementById('earningsDateRangeSelect').value;
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      if (select === 'today') {
+        currentFilteredData = earningsHistory.filter(d => d._id === todayStr);
+        document.getElementById('chartTitle').innerText = 'Daily Revenue (Today)';
+      } else if (select === '7days') {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 6);
+        const cutoffStr = cutoff.toISOString().split('T')[0];
+        currentFilteredData = earningsHistory.filter(d => d._id >= cutoffStr && d._id <= todayStr);
+        document.getElementById('chartTitle').innerText = 'Daily Revenue (Last 7 Days)';
+      } else if (select === '30days') {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 29);
+        const cutoffStr = cutoff.toISOString().split('T')[0];
+        currentFilteredData = earningsHistory.filter(d => d._id >= cutoffStr && d._id <= todayStr);
+        document.getElementById('chartTitle').innerText = 'Daily Revenue (Last 30 Days)';
+      } else if (select === 'custom') {
+        const fromVal = document.getElementById('pickerFrom').value;
+        const toVal = document.getElementById('pickerTo').value;
+        if (!fromVal || !toVal) return;
+        currentFilteredData = earningsHistory.filter(d => d._id >= fromVal && d._id <= toVal);
+        document.getElementById('chartTitle').innerText = `Daily Revenue (${fromVal} to ${toVal})`;
+      }
+
+      currentTablePage = 1;
+      renderEarningsHistoryChart(currentFilteredData);
+      renderEarningsHistoryTable(currentFilteredData);
+    }
+
+    // Chart Renderer using the filtered subset (CHANGE 1)
+    function renderEarningsHistoryChart(data) {
+      const container = document.getElementById('earningsChart');
+      if (!data) {
+        container.innerHTML = '<div style="color: var(--gray-text); font-weight: 600; padding: 2rem;">No history data available for this range</div>';
+        return;
+      }
+
+      const select = document.getElementById('earningsDateRangeSelect').value;
+      let startDate, endDate;
+      const today = new Date();
+      endDate = today;
+
+      if (select === 'today') {
+        startDate = today;
+      } else if (select === '7days') {
+        startDate = new Date();
+        startDate.setDate(today.getDate() - 6);
+      } else if (select === '30days') {
+        startDate = new Date();
+        startDate.setDate(today.getDate() - 29);
+      } else if (select === 'custom') {
+        const fromVal = document.getElementById('pickerFrom').value;
+        const toVal = document.getElementById('pickerTo').value;
+        startDate = fromVal ? new Date(fromVal) : today;
+        endDate = toVal ? new Date(toVal) : today;
+      }
+
+      // Generate continuous list of date strings (YYYY-MM-DD)
+      const dateList = [];
+      let current = new Date(startDate);
+      const endCompare = new Date(endDate);
+      endCompare.setHours(23, 59, 59, 999);
+
+      while (current <= endCompare) {
+        dateList.push(current.toISOString().split('T')[0]);
+        current.setDate(current.getDate() + 1);
+      }
+
+      // Populate missing days with 0 earnings/orders
+      const chartSubset = dateList.map(dateStr => {
+        const found = data.find(d => d._id === dateStr);
+        if (found) return found;
+        return {
+          _id: dateStr,
+          totalEarnings: 0,
+          orderCount: 0
+        };
+      });
+
+      // Slice the last 30 bars to prevent chart overflow if range is too large
+      const finalSubset = chartSubset.slice(-30);
+      const maxEarnings = Math.max(...finalSubset.map(d => d.totalEarnings), 0);
+
+      container.innerHTML = '';
+      finalSubset.forEach(day => {
+        const dateObj = new Date(day._id);
+        const labelText = dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        
+        const pct = maxEarnings > 0 ? (day.totalEarnings / maxEarnings) * 140 : 0; // limit height to max 140px
+        const isHighest = day.totalEarnings === maxEarnings && maxEarnings > 0;
+
+        const barWrapper = document.createElement('div');
+        barWrapper.className = 'chart-bar-wrapper';
+        barWrapper.innerHTML = `
+          <div class="chart-bar-value">₹${day.totalEarnings}</div>
+          <div class="chart-bar ${isHighest ? 'highest' : ''}" style="height: ${Math.max(pct, 2)}px;" data-tooltip="₹${day.totalEarnings} (${day.orderCount} orders)"></div>
+          <div class="chart-bar-label">${labelText}</div>
+        `;
+        container.appendChild(barWrapper);
+      });
+    }
+
+    // Table sorting triggers
+    function sortHistory(field) {
+      if (sortField === field) {
+        sortAscending = !sortAscending;
+      } else {
+        sortField = field;
+        sortAscending = (field === 'date') ? false : true; // date default desc, others default asc
+      }
+
+      updateHeaderIndicators();
+      currentTablePage = 1;
+      renderEarningsHistoryTable(currentFilteredData);
+    }
+
+    function updateHeaderIndicators() {
+      const indicators = {
+        date: document.getElementById('ind-date'),
+        orders: document.getElementById('ind-orders'),
+        earnings: document.getElementById('ind-earnings'),
+        avg: document.getElementById('ind-avg')
+      };
+
+      for (const key in indicators) {
+        if (key === sortField) {
+          indicators[key].innerText = sortAscending ? '▲' : '▼';
+        } else {
+          indicators[key].innerText = '';
+        }
+      }
+    }
+
+    // Table Renderer using the filtered subset (CHANGE 1)
+    function renderEarningsHistoryTable(data) {
+      const tbody = document.getElementById('earningsTableBody');
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--gray-text);">No history data available for this range</td></tr>';
+        return;
+      }
+
+      // Sort data
+      const sortedData = [...data];
+      sortedData.sort((a, b) => {
+        let valA, valB;
+        if (sortField === 'date') {
+          valA = a._id;
+          valB = b._id;
+        } else if (sortField === 'orders') {
+          valA = a.orderCount;
+          valB = b.orderCount;
+        } else if (sortField === 'earnings') {
+          valA = a.totalEarnings;
+          valB = b.totalEarnings;
+        } else if (sortField === 'avg') {
+          valA = a.orderCount > 0 ? (a.totalEarnings / a.orderCount) : 0;
+          valB = b.orderCount > 0 ? (b.totalEarnings / b.orderCount) : 0;
+        }
+
+        if (valA < valB) return sortAscending ? -1 : 1;
+        if (valA > valB) return sortAscending ? 1 : -1;
+        return 0;
+      });
+
+      // Pagination slice
+      const totalPages = Math.ceil(sortedData.length / tableItemsPerPage) || 1;
+      if (currentTablePage > totalPages) {
+        currentTablePage = totalPages;
+      }
+
+      renderTablePagination(totalPages, sortedData);
+
+      const startIndex = (currentTablePage - 1) * tableItemsPerPage;
+      const endIndex = startIndex + tableItemsPerPage;
+      const paginatedData = sortedData.slice(startIndex, endIndex);
+
+      tbody.innerHTML = '';
+      paginatedData.forEach(day => {
+        const avg = day.orderCount > 0 ? (day.totalEarnings / day.orderCount) : 0;
+        const formattedEarnings = day.totalEarnings % 1 === 0 ? day.totalEarnings : day.totalEarnings.toFixed(2);
+        const formattedAvg = avg % 1 === 0 ? avg : avg.toFixed(2);
+
+        // Date pretty print
+        const dateObj = new Date(day._id);
+        const formattedDate = dateObj.toLocaleDateString('en-IN', {
+          day: 'numeric', month: 'short', year: 'numeric', weekday: 'short'
+        });
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formattedDate}</td>
+          <td>${day.orderCount}</td>
+          <td>₹${formattedEarnings}</td>
+          <td>₹${formattedAvg}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderTablePagination(totalPages, sortedData) {
+      const controls = document.getElementById('tablePaginationControls');
+      if (totalPages <= 1) {
+        controls.innerHTML = '';
+        return;
+      }
+
+      window.currentSortedData = sortedData;
+
+      let html = `<button type="button" class="pagination-btn" ${currentTablePage === 1 ? 'disabled' : ''} onclick="changeTablePage(${currentTablePage - 1})">&lt; Previous</button>`;
+      
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button type="button" class="pagination-btn ${currentTablePage === i ? 'active' : ''}" onclick="changeTablePage(${i})">${i}</button>`;
+      }
+
+      html += `<button type="button" class="pagination-btn" ${currentTablePage === totalPages ? 'disabled' : ''} onclick="changeTablePage(${currentTablePage + 1})">Next &gt;</button>`;
+      
+      controls.innerHTML = html;
+    }
+
+    function changeTablePage(page) {
+      currentTablePage = page;
+      renderEarningsHistoryTable(window.currentSortedData || currentFilteredData);
+    }
+
+    // Excel Export (Generates real .xlsx file for presentation to college authorities)
+    function exportEarningsExcel() {
+      if (earningsHistory.length === 0) {
+        showAlert('No history data to export.', 'error');
+        return;
+      }
+
+      // Convert array of history objects to format for Excel
+      const excelRows = earningsHistory.map(day => {
+        return {
+          "Date": day._id,
+          "Orders Processed": day.orderCount,
+          "Total Revenue (INR)": day.totalEarnings
+        };
+      });
+
+      // Create Worksheet and set custom styles/auto column widths
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
+
+      // Standard styling layout options
+      const colWidths = [
+        { wch: 15 }, // Date
+        { wch: 20 }, // Orders Processed
+        { wch: 22 }  // Total Revenue
+      ];
+      worksheet['!cols'] = colWidths;
+
+      // Create Workbook
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Earnings Report");
+
+      // Generate file and download
+      const todayStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Printsta_Earnings_Report_${todayStr}.xlsx`);
+      
+      showAlert('Excel report downloaded successfully!', 'success');
+    }
+
+    // Initialization
+    loadSummary();
+    loadHistory();
+  </script>
+
+  
+
+</body>
+</html>

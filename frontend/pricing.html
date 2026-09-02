@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing Settings - Printsta Operator</title>
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Shared Design System stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root {
+      --navy: #1a2a4a;
+      --navy-dark: #0f1a30;
+      --gold: #f5a623;
+      --white: #ffffff;
+      --off-white: #f8f9fc;
+      --gray-100: #f0f2f7;
+      --gray-400: #9ba3b8;
+      --gray-600: #5a6480;
+      --border: #e2e6ef;
+    }
+
+    body, body.admin-body {
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+      background-color: var(--off-white);
+      color: #111;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: block;
+    }
+
+    * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 240px;
+      background-color: var(--navy-dark);
+      color: var(--white);
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding: 0 0.5rem;
+    }
+
+    .sidebar-logo img { height: 32px; width: auto; }
+
+    .sidebar-wordmark {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .sidebar-wordmark .prin { color: var(--white); }
+    .sidebar-wordmark .sta { color: var(--gold); }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      color: var(--gray-400);
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-link:hover, .sidebar-link.active {
+      color: var(--white);
+      background-color: rgba(255,255,255,0.08);
+    }
+
+    .sidebar-link.active {
+      border-left: 4px solid var(--gold);
+      padding-left: calc(1rem - 4px);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar-logout {
+      background: transparent;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    .sidebar-logout:hover {
+      background: var(--gold);
+      color: var(--navy-dark);
+    }
+
+    .mobile-header {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background-color: #111;
+      color: var(--white);
+      padding: 0 1rem;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 90;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .hamburger-btn {
+      background: none;
+      border: none;
+      color: var(--white);
+      font-size: 1.75rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 95;
+    }
+
+    .main-content {
+      margin-left: 240px;
+      padding: 2rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 992px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-backdrop.show { display: block; }
+      .mobile-header { display: flex; }
+      .main-content {
+        margin-left: 0;
+        padding-top: calc(60px + 1.5rem);
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+
+    .content-header {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      text-align: left;
+    }
+
+    .content-header h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #111;
+      margin-bottom: 4px;
+    }
+
+    .content-header p {
+      font-size: 0.9rem;
+      color: var(--gray-400);
+      font-weight: 600;
+    }
+
+    /* Navy Form Card styles */
+    .pricing-card {
+      background: linear-gradient(135deg, #1a2a4a 0%, #243a6a 100%);
+      border-radius: 14px;
+      padding: 2.5rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      box-shadow: 0 4px 20px rgba(26, 42, 74, 0.15);
+    }
+
+    .pricing-fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .pricing-fields-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .pricing-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .pricing-field label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #a0b4d0;
+    }
+
+    .pricing-input-wrapper {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 2px;
+      transition: all 0.2s;
+    }
+
+    .pricing-input-wrapper:focus-within {
+      border-color: var(--gold);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .pricing-input-wrapper input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 12px 14px;
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-family: inherit;
+    }
+
+    .pricing-field-desc {
+      font-size: 0.75rem;
+      color: #a0b4d0;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .pricing-btn-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .btn-save-pricing {
+      background: #f5a623;
+      color: #1a2a4a;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn-save-pricing:hover {
+      background: #e6951a;
+    }
+
+    .btn-save-pricing:active {
+      transform: scale(0.97);
+    }
+
+    .btn-save-pricing:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .last-updated-text {
+      font-size: 0.8rem;
+      color: var(--gray-text);
+      font-weight: 600;
+      text-align: left;
+      margin-top: 0.5rem;
+    }
+
+    /* Live Preview Card styles */
+    .preview-card {
+      background-color: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+      text-align: left;
+    }
+
+    .preview-card-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--gray-text);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preview-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #111;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preview-value-highlight {
+      color: var(--gold);
+    }
+
+    .preview-details {
+      font-size: 0.8rem;
+      color: var(--gray-text);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    /* =========================================
+       PASSWORD CONFIRM MODAL
+       ========================================= */
+    .pwd-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 25, 50, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .pwd-modal-overlay.active {
+      display: flex;
+    }
+    .pwd-modal {
+      background: #fff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      margin: 1rem;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(26, 42, 74, 0.25);
+      animation: modalPop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.88); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+    .pwd-modal-header {
+      background: linear-gradient(135deg, #1a2a4a 0%, #243a6a 100%);
+      color: #fff;
+      padding: 1.2rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pwd-modal-header-text h3 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      margin: 0 0 2px;
+    }
+    .pwd-modal-header-text p {
+      font-size: 0.78rem;
+      opacity: 0.75;
+      margin: 0;
+    }
+    .pwd-modal-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.4rem;
+      cursor: pointer;
+      opacity: 0.7;
+      line-height: 1;
+      transition: opacity 0.2s;
+      padding: 0 4px;
+    }
+    .pwd-modal-close:hover { opacity: 1; }
+    .pwd-modal-body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    /* Change Summary */
+    .pwd-change-summary {
+      background: #f0f4ff;
+      border: 1px solid #d0dbf5;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pwd-change-summary-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .pwd-change-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #1a2a4a;
+    }
+    .pwd-change-label {
+      color: #6b7280;
+      min-width: 80px;
+      font-size: 0.82rem;
+    }
+    .pwd-change-arrow { color: #9ca3af; font-size: 0.85rem; }
+    .pwd-change-new { color: #1a2a4a; font-weight: 800; }
+    .pwd-change-badge {
+      background: #fff3cd;
+      color: #92600a;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    /* Password Input */
+    .pwd-field-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .pwd-input-wrapper {
+      display: flex;
+      align-items: center;
+      border: 1.5px solid #d1d5db;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+    .pwd-input-wrapper:focus-within {
+      border-color: #1a2a4a;
+    }
+    .pwd-input-wrapper input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 12px 14px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: transparent;
+      color: #1a2a4a;
+    }
+    .pwd-eye-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 10px 12px;
+      color: #9ca3af;
+      font-size: 1rem;
+      line-height: 1;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    .pwd-eye-btn:hover { color: #1a2a4a; }
+    /* Error message */
+    .pwd-error-msg {
+      display: none;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #dc2626;
+      padding: 8px 12px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+    }
+    .pwd-error-msg.visible { display: block; }
+    /* Action buttons */
+    .pwd-modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.25rem;
+    }
+    .btn-pwd-cancel {
+      flex: 1;
+      background: #fff;
+      border: 2px solid #d1d5db;
+      color: #6b7280;
+      padding: 11px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-pwd-cancel:hover {
+      border-color: #9ca3af;
+      color: #374151;
+    }
+    .btn-pwd-confirm {
+      flex: 2;
+      background: #f5a623;
+      border: none;
+      color: #1a2a4a;
+      padding: 11px 20px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 0.92rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-pwd-confirm:hover:not(:disabled) { background: #e6951a; }
+    .btn-pwd-confirm:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body class="admin-body">
+
+  <!-- Dynamic Alert Notification Popup -->
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Left Sidebar -->
+  <aside class="sidebar" id="adminSidebar">
+    <div class="sidebar-logo">
+      <a href="admin.html" class="sidebar-wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="admin.html" class="sidebar-link">Dashboard</a>
+      <a href="pricing.html" class="sidebar-link active">Pricing</a>
+      <a href="earnings.html" class="sidebar-link">Earnings</a>
+      <a href="orders-list.html" class="sidebar-link">Orders</a>
+      <a href="students.html" class="sidebar-link">Students</a>
+      <a href="audit-log.html" class="sidebar-link">Activity Log</a>
+      <a href="resources.html" class="sidebar-link">Resources</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-logout" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+    <a href="admin.html" class="sidebar-wordmark" style="font-size: 1.25rem;"><span class="prin">prin</span><span class="sta">sta</span></a>
+    <div style="width: 28px;"></div>
+  </div>
+
+  <!-- PASSWORD CONFIRM MODAL -->
+  <div class="pwd-modal-overlay" id="pwdModalOverlay" role="dialog" aria-modal="true" aria-labelledby="pwdModalTitle">
+    <div class="pwd-modal">
+      <div class="pwd-modal-header">
+        <div class="pwd-modal-header-text">
+          <h3 id="pwdModalTitle">Confirm Price Change</h3>
+          <p>Enter your admin password to apply this change</p>
+        </div>
+        <button class="pwd-modal-close" onclick="closePwdModal()" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="pwd-modal-body">
+
+        <!-- Change Summary -->
+        <div class="pwd-change-summary" id="pwdChangeSummary"></div>
+
+        <!-- Name Field -->
+        <div style="margin-bottom:12px;">
+          <div class="pwd-field-label" style="margin-bottom:6px;">Admin Name</div>
+          <div class="pwd-input-wrapper">
+            <input type="text" id="pwdConfirmNameInput" placeholder="Enter your name"
+                   oninput="onPwdInput()" onkeydown="handlePwdKeydown(event)" autocomplete="name">
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div>
+          <div class="pwd-field-label" style="margin-bottom:6px;">Admin Password</div>
+          <div class="pwd-input-wrapper">
+            <input type="password" id="pwdConfirmInput" placeholder="Enter your login password"
+                   oninput="onPwdInput()" onkeydown="handlePwdKeydown(event)" autocomplete="current-password">
+            <button class="pwd-eye-btn" id="pwdEyeBtn" onclick="togglePwdVisibility()" type="button" aria-label="Toggle password visibility">
+              <svg id="eyeIconShow" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              <svg id="eyeIconHide" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.97 9.97 0 012.163-3.592m3.087-2.6A9.953 9.953 0 0112 5c4.477 0 8.268 2.943 9.542 7a10.02 10.02 0 01-4.293 5.24M15 12a3 3 0 00-3-3m0 0a3 3 0 00-3 3m3-3l-9 9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Error message area -->
+        <div class="pwd-error-msg" id="pwdErrorMsg"></div>
+
+        <!-- Action buttons -->
+        <div class="pwd-modal-actions">
+          <button class="btn-pwd-cancel" onclick="closePwdModal()" id="pwdCancelBtn">Cancel</button>
+          <button class="btn-pwd-confirm" id="pwdConfirmBtn" onclick="confirmPriceChange()" disabled>Confirm</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+      
+      <!-- Content Header -->
+      <header class="content-header">
+        <h1>Pricing Settings</h1>
+        <p>Update rates — changes apply to all new orders immediately</p>
+      </header>
+
+      <!-- Pricing Form Card (Smart Pricing Layout) -->
+      <section class="pricing-card">
+        <form id="pricingForm" onsubmit="savePricing(event)">
+          <div class="pricing-fields-grid" style="grid-template-columns: 1fr 1fr;">
+            <!-- B&W Single Rate -->
+            <div class="pricing-field">
+              <label for="inputBwSingleRate">B&amp;W — Single Sided Rate</label>
+              <div class="pricing-input-wrapper">
+                <input type="number" id="inputBwSingleRate" min="0.1" step="0.1" required oninput="updateLivePreview()">
+              </div>
+              <span class="pricing-field-desc">₹ per page</span>
+            </div>
+
+            <!-- B&W Double Rate -->
+            <div class="pricing-field">
+              <label for="inputBwDoubleRate">B&amp;W — Double Sided Rate</label>
+              <div class="pricing-input-wrapper">
+                <input type="number" id="inputBwDoubleRate" min="0.1" step="0.1" required oninput="updateLivePreview()">
+              </div>
+              <span class="pricing-field-desc">₹ per page (charged per page, not per sheet)</span>
+            </div>
+
+            <!-- Color Single Rate -->
+            <div class="pricing-field">
+              <label for="inputColorSingleRate">Color — Single Sided Rate</label>
+              <div class="pricing-input-wrapper">
+                <input type="number" id="inputColorSingleRate" min="0.1" step="0.1" required oninput="updateLivePreview()">
+              </div>
+              <span class="pricing-field-desc">₹ per page</span>
+            </div>
+
+            <!-- Color Double Rate -->
+            <div class="pricing-field">
+              <label for="inputColorDoubleRate">Color — Double Sided Rate</label>
+              <div class="pricing-input-wrapper">
+                <input type="number" id="inputColorDoubleRate" min="0.1" step="0.1" required oninput="updateLivePreview()">
+              </div>
+              <span class="pricing-field-desc">₹ per page</span>
+            </div>
+          </div>
+
+          <!-- Price Warning Container -->
+          <div id="pricingWarning" style="display: none; background: #fffbeb; border: 1.5px solid #feebc8; color: #c05621; padding: 12px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; margin-top: 1rem;">
+            ️ Double sided rate seems high compared to single sided — are you sure?
+          </div>
+
+          <!-- Button Row -->
+          <div class="pricing-btn-row" style="margin-top: 1.5rem;">
+            <button type="submit" class="btn-save-pricing" id="savePricingBtn">Save Prices</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Last Updated Timestamp -->
+      <div class="last-updated-text" id="lastUpdatedDisplay">Last updated: Loading...</div>
+
+      <!-- Price Preview Card -->
+      <section class="preview-card">
+        <div class="preview-card-title">Live Preview Check</div>
+        <div class="preview-value">
+          Example calculation: <span class="preview-value-highlight" id="previewTotal">₹0.00</span>
+        </div>
+        <div class="preview-details" id="previewBreakdown">
+          Calculated for: 10 copies · Color
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Redirect immediately to admin-login.html if token missing
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      window.location.href = 'admin-login.html';
+    }
+
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+    const ACTIVE_PAGE_NAME = 'pricing';
+
+    // Pending price values set when admin clicks "Save Prices"
+    let pendingBwSingleRate    = null;
+    let pendingBwDoubleRate    = null;
+    let pendingColorSingleRate = null;
+    let pendingColorDoubleRate = null;
+
+    // Loaded from backend, used for diff summary
+    let currentBwSingleRate    = null;
+    let currentBwDoubleRate    = null;
+    let currentColorSingleRate = null;
+    let currentColorDoubleRate = null;
+
+    // Sidebar toggle for mobile
+    function toggleSidebar() {
+      const sidebar = document.getElementById('adminSidebar');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      sidebar.classList.toggle('open');
+      backdrop.classList.toggle('show');
+    }
+
+    // Mark active sidebar link
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      if (link.dataset.page === ACTIVE_PAGE_NAME) {
+        link.classList.add('active');
+      }
+    });
+
+    // Handle logout action
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'admin-login.html';
+    }
+
+    // Helper to display toast alert popups
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.innerText = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => {
+        popup.style.display = 'none';
+      }, 4000);
+    }
+
+    // Load pricing config from backend
+    async function loadPricing() {
+      try {
+        const res = await fetch(`${API_BASE}/settings/pricing`);
+        const data = await res.json();
+        if (data.success) {
+          currentBwSingleRate    = data.pricing.bwSingleRate    || 2;
+          currentBwDoubleRate    = data.pricing.bwDoubleRate    || 3;
+          currentColorSingleRate = data.pricing.colorSingleRate || 5;
+          currentColorDoubleRate = data.pricing.colorDoubleRate || 7;
+
+          document.getElementById('inputBwSingleRate').value    = currentBwSingleRate;
+          document.getElementById('inputBwDoubleRate').value    = currentBwDoubleRate;
+          document.getElementById('inputColorSingleRate').value = currentColorSingleRate;
+          document.getElementById('inputColorDoubleRate').value = currentColorDoubleRate;
+
+          if (data.pricing.lastUpdated) {
+            const dateStr = new Date(data.pricing.lastUpdated).toLocaleString('en-IN', {
+              day: 'numeric', month: 'short', year: 'numeric',
+              hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            document.getElementById('lastUpdatedDisplay').innerText = `Last updated: ${dateStr}`;
+          } else {
+            document.getElementById('lastUpdatedDisplay').innerText = `Last updated: Just now`;
+          }
+
+          updateLivePreview();
+        }
+      } catch (err) {
+        console.error('Failed to load pricing:', err);
+        showAlert('Could not fetch current prices.', 'error');
+      }
+    }
+
+    // =========================================================
+    //  STEP 1 — "Save Prices" clicked: validate & show modal
+    // =========================================================
+    function savePricing(event) {
+      event.preventDefault();
+
+      const bwSingleRate    = parseFloat(document.getElementById('inputBwSingleRate').value);
+      const bwDoubleRate    = parseFloat(document.getElementById('inputBwDoubleRate').value);
+      const colorSingleRate = parseFloat(document.getElementById('inputColorSingleRate').value);
+      const colorDoubleRate = parseFloat(document.getElementById('inputColorDoubleRate').value);
+
+      if (isNaN(bwSingleRate)    || bwSingleRate    <= 0 ||
+          isNaN(bwDoubleRate)    || bwDoubleRate    <= 0 ||
+          isNaN(colorSingleRate) || colorSingleRate <= 0 ||
+          isNaN(colorDoubleRate) || colorDoubleRate <= 0) {
+        showAlert('Please enter valid positive rates for all 4 fields.', 'error');
+        return;
+      }
+
+      // Store pending values
+      pendingBwSingleRate    = bwSingleRate;
+      pendingBwDoubleRate    = bwDoubleRate;
+      pendingColorSingleRate = colorSingleRate;
+      pendingColorDoubleRate = colorDoubleRate;
+
+      // Build change summary HTML
+      const oldBwS = currentBwSingleRate    != null ? currentBwSingleRate    : '?';
+      const oldBwD = currentBwDoubleRate    != null ? currentBwDoubleRate    : '?';
+      const oldColS = currentColorSingleRate != null ? currentColorSingleRate : '?';
+      const oldColD = currentColorDoubleRate != null ? currentColorDoubleRate : '?';
+
+      const bwSChanged  = (oldBwS  !== bwSingleRate);
+      const bwDChanged  = (oldBwD  !== bwDoubleRate);
+      const colSChanged = (oldColS !== colorSingleRate);
+      const colDChanged = (oldColD !== colorDoubleRate);
+
+      let summaryHTML = `<div class="pwd-change-summary-title">What will change</div>`;
+
+      if (bwSChanged) {
+        summaryHTML += `
+          <div class="pwd-change-row">
+            <span class="pwd-change-label">B&amp;W Single Sided</span>
+            <span>₹${oldBwS}</span>
+            <span class="pwd-change-arrow">→</span>
+            <span class="pwd-change-new">₹${bwSingleRate}</span>
+            <span class="pwd-change-badge">Changed</span>
+          </div>`;
+      }
+      if (bwDChanged) {
+        summaryHTML += `
+          <div class="pwd-change-row">
+            <span class="pwd-change-label">B&amp;W Double Sided</span>
+            <span>₹${oldBwD}</span>
+            <span class="pwd-change-arrow">→</span>
+            <span class="pwd-change-new">₹${bwDoubleRate}</span>
+            <span class="pwd-change-badge">Changed</span>
+          </div>`;
+      }
+      if (colSChanged) {
+        summaryHTML += `
+          <div class="pwd-change-row">
+            <span class="pwd-change-label">Color Single Sided</span>
+            <span>₹${oldColS}</span>
+            <span class="pwd-change-arrow">→</span>
+            <span class="pwd-change-new">₹${colorSingleRate}</span>
+            <span class="pwd-change-badge">Changed</span>
+          </div>`;
+      }
+      if (colDChanged) {
+        summaryHTML += `
+          <div class="pwd-change-row">
+            <span class="pwd-change-label">Color Double Sided</span>
+            <span>₹${oldColD}</span>
+            <span class="pwd-change-arrow">→</span>
+            <span class="pwd-change-new">₹${colorDoubleRate}</span>
+            <span class="pwd-change-badge">Changed</span>
+          </div>`;
+      }
+      if (!bwSChanged && !bwDChanged && !colSChanged && !colDChanged) {
+        summaryHTML += `<div class="pwd-change-row" style="color:#6b7280;font-size:0.85rem;">No values changed from current rates.</div>`;
+      }
+
+      document.getElementById('pwdChangeSummary').innerHTML = summaryHTML;
+
+      // Reset modal state
+      if (lockoutInterval) {
+        clearInterval(lockoutInterval);
+      }
+      document.getElementById('pwdConfirmNameInput').value = '';
+      document.getElementById('pwdConfirmInput').value = '';
+      document.getElementById('pwdConfirmInput').type  = 'password';
+      document.getElementById('eyeIconShow').style.display = '';
+      document.getElementById('eyeIconHide').style.display = 'none';
+      setModalError('');
+      document.getElementById('pwdConfirmBtn').disabled = true;
+      document.getElementById('pwdConfirmBtn').textContent = 'Confirm';
+      document.getElementById('pwdCancelBtn').disabled = false;
+
+      // Show modal
+      document.getElementById('pwdModalOverlay').classList.add('active');
+      setTimeout(() => document.getElementById('pwdConfirmNameInput').focus(), 80);
+    }
+
+    let lockoutInterval = null;
+
+    function startLockoutCountdown(lockUntilStr) {
+      clearInterval(lockoutInterval);
+      const lockUntil = new Date(lockUntilStr);
+      const confirmBtn = document.getElementById('pwdConfirmBtn');
+      const cancelBtn  = document.getElementById('pwdCancelBtn');
+
+      function updateCountdown() {
+        const now = new Date();
+        const diffMs = lockUntil - now;
+
+        if (diffMs <= 0) {
+          clearInterval(lockoutInterval);
+          setModalError('');
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Confirm';
+          confirmBtn.classList.remove('loading');
+          cancelBtn.disabled = false;
+          document.getElementById('pwdConfirmInput').value = '';
+          document.getElementById('pwdConfirmInput').focus();
+        } else {
+          const secsLeft = Math.ceil(diffMs / 1000);
+          setModalError(`Too many failed attempts. Please try again in ${secsLeft} second${secsLeft !== 1 ? 's' : ''}.`);
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = `Locked (${secsLeft}s)`;
+          cancelBtn.disabled = false;
+        }
+      }
+
+      updateCountdown();
+      lockoutInterval = setInterval(updateCountdown, 1000);
+    }
+
+    function closePwdModal() {
+      document.getElementById('pwdModalOverlay').classList.remove('active');
+      setModalError('');
+      if (lockoutInterval) {
+        clearInterval(lockoutInterval);
+      }
+    }
+
+    function setModalError(msg) {
+      const el = document.getElementById('pwdErrorMsg');
+      if (msg) {
+        el.textContent = msg;
+        el.classList.add('visible');
+      } else {
+        el.textContent = '';
+        el.classList.remove('visible');
+      }
+    }
+
+    function onPwdInput() {
+      const name = document.getElementById('pwdConfirmNameInput').value;
+      const pwd  = document.getElementById('pwdConfirmInput').value;
+      document.getElementById('pwdConfirmBtn').disabled = (name.trim().length === 0 || pwd.trim().length === 0);
+      setModalError('');
+    }
+
+    function handlePwdKeydown(event) {
+      if (event.key === 'Enter') {
+        const btn = document.getElementById('pwdConfirmBtn');
+        if (!btn.disabled) confirmPriceChange();
+      }
+      if (event.key === 'Escape') closePwdModal();
+    }
+
+    function togglePwdVisibility() {
+      const input = document.getElementById('pwdConfirmInput');
+      const show  = document.getElementById('eyeIconShow');
+      const hide  = document.getElementById('eyeIconHide');
+      if (input.type === 'password') {
+        input.type = 'text';
+        show.style.display = 'none';
+        hide.style.display = '';
+      } else {
+        input.type = 'password';
+        show.style.display = '';
+        hide.style.display = 'none';
+      }
+      input.focus();
+    }
+
+    // =========================================================
+    //  STEP 2 — "Confirm" clicked: POST to /admin/verify-price-change
+    // =========================================================
+    async function confirmPriceChange() {
+      const name     = document.getElementById('pwdConfirmNameInput').value;
+      const password = document.getElementById('pwdConfirmInput').value;
+      if (!name || !password) return;
+
+      const confirmBtn = document.getElementById('pwdConfirmBtn');
+      const cancelBtn  = document.getElementById('pwdCancelBtn');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Verifying...';
+      confirmBtn.classList.add('loading');
+      cancelBtn.disabled = true;
+      setModalError('');
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/verify-price-change`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            password,
+            adminName: name,
+            newBwSingleRate:    pendingBwSingleRate,
+            newBwDoubleRate:    pendingBwDoubleRate,
+            newColorSingleRate: pendingColorSingleRate,
+            newColorDoubleRate: pendingColorDoubleRate
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          closePwdModal();
+
+          // Update tracked current values
+          currentBwSingleRate    = pendingBwSingleRate;
+          currentBwDoubleRate    = pendingBwDoubleRate;
+          currentColorSingleRate = pendingColorSingleRate;
+          currentColorDoubleRate = pendingColorDoubleRate;
+
+          // Refresh last-updated timestamp
+          if (data.pricing && data.pricing.lastUpdated) {
+            const dateStr = new Date(data.pricing.lastUpdated).toLocaleString('en-IN', {
+              day: 'numeric', month: 'short', year: 'numeric',
+              hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            document.getElementById('lastUpdatedDisplay').innerText = `Last updated: ${dateStr}`;
+          }
+
+          showAlert('Prices updated successfully!', 'success');
+
+        } else if (data.locked) {
+          if (data.lockUntil) {
+            startLockoutCountdown(data.lockUntil);
+          } else {
+            setModalError(data.error || 'Too many failed attempts. Please wait and try again.');
+            confirmBtn.textContent = 'Locked';
+            confirmBtn.disabled = true;
+            cancelBtn.disabled = false;
+          }
+        } else {
+          setModalError(data.error || 'Incorrect password. Please try again.');
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Confirm';
+          confirmBtn.classList.remove('loading');
+          cancelBtn.disabled = false;
+          document.getElementById('pwdConfirmInput').value = '';
+          document.getElementById('pwdConfirmBtn').disabled = true;
+          document.getElementById('pwdConfirmInput').focus();
+        }
+
+      } catch (err) {
+        console.error('confirmPriceChange error:', err);
+        setModalError('Network error. Is the backend running?');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm';
+        confirmBtn.classList.remove('loading');
+        cancelBtn.disabled = false;
+      }
+    }
+
+    // Close modal when clicking backdrop
+    document.getElementById('pwdModalOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closePwdModal();
+    });
+
+    // Live preview update — shows 4 real-time pricing scenarios
+    function updateLivePreview() {
+      const bwSRate  = parseFloat(document.getElementById('inputBwSingleRate').value)  || 0;
+      const bwDRate  = parseFloat(document.getElementById('inputBwDoubleRate').value)  || 0;
+      const colSRate = parseFloat(document.getElementById('inputColorSingleRate').value) || 0;
+      const colDRate = parseFloat(document.getElementById('inputColorDoubleRate').value) || 0;
+
+      // Warn if double sided rate >= 2 * single sided rate
+      const warningEl = document.getElementById('pricingWarning');
+      if (warningEl) {
+        const isHighBw  = bwSRate  > 0 && bwDRate  >= 2 * bwSRate;
+        const isHighCol = colSRate > 0 && colDRate >= 2 * colSRate;
+        warningEl.style.display = (isHighBw || isHighCol) ? 'block' : 'none';
+      }
+
+      // 4 Scenario calculations (10 and 11 pages)
+      const bwSingle10       = Math.round(10 * bwSRate);
+      const bwDoubleEven10   = Math.round(10 * bwDRate);
+      const bwDoubleOdd11    = Math.round((10 * bwDRate) + (1 * bwSRate));
+      const colSingle10      = Math.round(10 * colSRate);
+
+      document.getElementById('previewTotal').innerText = `4 Scenarios`;
+      document.getElementById('previewBreakdown').innerHTML =
+        `<div style="line-height: 1.8; text-align: left; font-size: 0.88rem;">` +
+        `<div>• <strong>B&amp;W Single sided</strong> (10 pages × ₹${bwSRate}) = <span style="color:var(--gold);font-weight:800;">₹${bwSingle10}</span></div>` +
+        `<div>• <strong>B&amp;W Double sided (even)</strong> (10 pages × ₹${bwDRate}) = <span style="color:var(--gold);font-weight:800;">₹${bwDoubleEven10}</span></div>` +
+        `<div>• <strong>B&amp;W Double sided (odd, 11 pages)</strong> = (10 × ₹${bwDRate}) + (1 × ₹${bwSRate}) = <span style="color:var(--gold);font-weight:800;">₹${bwDoubleOdd11}</span></div>` +
+        `<div>• <strong>Color Single sided</strong> (10 pages × ₹${colSRate}) = <span style="color:var(--gold);font-weight:800;">₹${colSingle10}</span></div>` +
+        `</div>`;
+    }
+
+    // Load prices on start
+    loadPricing();
+  </script>
+
+
+  
+
+</body>
+</html>
+

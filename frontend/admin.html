@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Printsta SECE</title>
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Shared Design System stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- PWA Manifest & Mobile Icons -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <meta name="theme-color" content="#0f1a30">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    :root {
+      --navy: #1a2a4a;
+      --navy-dark: #0f1a30;
+      --gold: #f5a623;
+      --white: #ffffff;
+      --off-white: #f8f9fc;
+      --gray-100: #f0f2f7;
+      --gray-400: #9ba3b8;
+      --gray-600: #5a6480;
+      --border: #e2e6ef;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+      background-color: var(--off-white);
+      color: #111;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: block;
+    }
+
+    * {
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 240px;
+      background-color: var(--navy-dark);
+      color: var(--white);
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+      padding: 0 0.5rem;
+    }
+
+    .sidebar-logo img {
+      height: 32px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .sidebar-wordmark {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .sidebar-wordmark .prin {
+      color: var(--white);
+    }
+
+    .sidebar-wordmark .sta {
+      color: var(--gold);
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      color: var(--gray-400);
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-link:hover, .sidebar-link.active {
+      color: var(--white);
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .sidebar-link.active {
+      border-left: 4px solid var(--gold);
+      padding-left: calc(1rem - 4px);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .sidebar-logout {
+      background: transparent;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    .sidebar-logout:hover {
+      background: var(--gold);
+      color: var(--navy-dark);
+    }
+
+    /* Mobile Top Bar (with Hamburger) */
+    .mobile-header {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background-color: #111;
+      color: var(--white);
+      padding: 0 1rem;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 90;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .hamburger-btn {
+      background: none;
+      border: none;
+      color: var(--white);
+      font-size: 1.75rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 95;
+    }
+
+    /* Main Content Wrapper */
+    .main-content {
+      margin-left: 240px;
+      padding: 2rem;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    /* Responsive styles */
+    @media (max-width: 992px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .sidebar-backdrop.show {
+        display: block;
+      }
+      .mobile-header {
+        display: flex;
+      }
+      .main-content {
+        margin-left: 0;
+        padding-top: calc(60px + 1.5rem);
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+    }
+
+    .content-header h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #111;
+      margin: 0;
+    }
+
+    .content-header .header-date {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--gray-text);
+    }
+
+    /* Stats Row styling */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      column-gap: 1.5rem;
+      row-gap: 1rem;
+      width: 100%;
+      margin-bottom: 2.5rem;
+    }
+
+    .stats-card {
+      background-color: var(--white);
+      border-radius: 10px;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: all 0.3s ease;
+      border: 1px solid var(--border);
+    }
+
+    .stats-num {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #111;
+      margin-bottom: 4px;
+    }
+
+    .stats-label {
+      font-size: 0.8rem;
+      color: var(--gray-text);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Panel layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 2rem;
+    }
+
+    .panel {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+      margin-bottom: 2rem;
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #111;
+      margin-top: 0;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table.admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    table.admin-table th, table.admin-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    table.admin-table th {
+      background-color: #f8fafc;
+      color: #111;
+      font-weight: 700;
+    }
+
+    .status-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .status-badge.online { background: #dcfce7; color: #15803d; }
+    .status-badge.offline { background: #f1f5f9; color: #64748b; }
+
+    .action-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.8rem;
+      margin-right: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .action-btn.delete { color: #ef4444; border: 1px solid #fecaca; }
+    .action-btn.delete:hover { background: #fee2e2; }
+    .action-btn.reset { color: #111; border: 1px solid #cbd5e1; }
+    .action-btn.reset:hover { background: #f1f5f9; }
+
+    /* Secret Code Card */
+    .secret-code-card {
+      background: linear-gradient(135deg, #1a2a4a 0%, #2d4270 100%);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-top: 1.5rem;
+      color: white;
+    }
+    .secret-code-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 0.5rem;
+    }
+    .secret-code-display {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .code-value {
+      font-family: monospace;
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: #f5a623;
+      background: rgba(0,0,0,0.25);
+      padding: 6px 14px;
+      border-radius: 8px;
+      letter-spacing: 2px;
+      filter: blur(6px);
+      user-select: none;
+      transition: filter 0.3s;
+      min-width: 180px;
+    }
+    .code-value.revealed {
+      filter: none;
+      user-select: text;
+    }
+    .code-action-btn {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .code-action-btn:hover { background: rgba(255,255,255,0.25); }
+    .code-action-btn.regen { background: rgba(245,166,35,0.25); border-color: #f5a623; color: #f5a623; }
+    .code-action-btn.regen:hover { background: rgba(245,166,35,0.4); }
+
+    /* Mobile Responsive */
+    @media (max-width: 850px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body class="admin-body">
+
+  <!-- Dynamic Alert Notification Popup -->
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a href="admin.html" class="sidebar-wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="admin.html" class="sidebar-link active">Dashboard</a>
+      <a href="pricing.html" class="sidebar-link">Pricing</a>
+      <a href="earnings.html" class="sidebar-link">Earnings</a>
+      <a href="orders-list.html" class="sidebar-link">Orders</a>
+      <a href="students.html" class="sidebar-link">Students</a>
+      <a href="audit-log.html" class="sidebar-link">Activity Log</a>
+      <a href="resources.html" class="sidebar-link">Resources</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-logout" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+    <a href="admin.html" class="sidebar-wordmark" style="font-size: 1.25rem;"><span class="prin">prin</span><span class="sta">sta</span></a>
+    <div style="width: 28px;"></div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    
+    <header class="content-header">
+      <h1>Admin Management Console</h1>
+      <div class="header-date" id="currentDateDisplay">Date: -</div>
+    </header>
+
+    <!-- Stats Row -->
+    <section class="stats-row">
+      <div class="stats-card">
+        <div class="stats-num" id="statsOrders">0</div>
+        <div class="stats-label">Today's Orders</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-num" id="statsEarnings">₹0</div>
+        <div class="stats-label">Today's Earnings</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-num" id="statsPaper">0</div>
+        <div class="stats-label">Paper Stock</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-num" id="statsStaff">0</div>
+        <div class="stats-label">Active Staff</div>
+      </div>
+    </section>
+
+    <!-- Dashboard Content Grid -->
+    <div class="dashboard-grid">
+      
+      <!-- Left Panel: Staff Management -->
+      <section class="panel">
+        <div class="panel-title">
+          <span>Staff Accounts &amp; Live Status</span>
+        </div>
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Status</th>
+                <th>Last Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staffTableBody">
+              <tr>
+                <td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-text);">Loading staff accounts...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Link to Dedicated Create Staff Page -->
+        <div style="margin-top:1.25rem; text-align:center;">
+          <a href="create-staff.html" style="display:inline-block; background:var(--navy); color:#fff; font-weight:800; border:none; padding:0.75rem 1.5rem; border-radius:8px; cursor:pointer; font-size:0.95rem; text-decoration:none; transition:background-color 0.2s;">
+            Create New Staff Account
+          </a>
+        </div>
+      </section>
+
+
+
+      <!-- Right Panel: Recent Audit Logs & Registered Students -->
+      <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        <!-- Recent Audit Logs -->
+        <section class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Recent Activity Log</div>
+          <div class="table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Admin</th>
+                  <th>Changes</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody">
+                <tr>
+                  <td colspan="3" style="text-align:center;padding:2rem;color:var(--gray-text);">Loading log entries...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <a href="audit-log.html" style="display:block;text-align:center;font-size:0.82rem;font-weight:700;color: #111;margin-top:1rem;text-decoration:none;">View Full Activity Log &rarr;</a>
+        </section>
+
+        <!-- Live Print Queue Panel (Similar to Staff) -->
+        <section class="panel">
+          <div class="panel-title">Live Print Queue Details</div>
+          <div class="table-container" style="max-height: 280px; overflow-y: auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Token</th>
+                  <th>Student</th>
+                  <th>Print Details</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="printsTableBody">
+                <tr>
+                  <td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-text);">Loading print queue...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      const backdrop = document.querySelector('.sidebar-backdrop');
+      if (sidebar && backdrop) {
+        sidebar.classList.toggle('open');
+        backdrop.classList.toggle('show');
+      }
+    }
+
+    // ── AUTH CHECK ──
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      window.location.href = 'index.html';
+    }
+
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+
+    document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('en-IN', {
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+    });
+
+    // Alert popup helper
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.innerText = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => { popup.style.display = 'none'; }, 4000);
+    }
+
+    // ── LOAD STATS ──
+    async function loadStats() {
+      try {
+        const response = await fetch(`${API_BASE}/admin/dashboard-stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          document.getElementById('statsOrders').textContent = data.stats.todayOrders;
+          document.getElementById('statsEarnings').textContent = `₹${data.stats.todayEarnings}`;
+          document.getElementById('statsPaper').textContent = data.stats.paperStock + ' sheets';
+          document.getElementById('statsStaff').textContent = data.stats.activeStaff;
+        }
+      } catch (err) {
+        console.error('Stats fetch error:', err);
+      }
+    }
+
+
+
+
+    // ── LOAD STAFF ──
+    async function loadStaff() {
+      try {
+        const response = await fetch(`${API_BASE}/admin/staff`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        const tBody = document.getElementById('staffTableBody');
+        if (response.ok && data.success) {
+          if (data.staff.length === 0) {
+            tBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-text);">No staff accounts registered.</td></tr>';
+            return;
+          }
+
+          tBody.innerHTML = data.staff.map(s => {
+            const statusClass = s.isActive ? 'online' : 'offline';
+            const statusLabel = s.isActive ? 'Online' : 'Offline';
+            const lastSeenStr = s.lastSeen ? new Date(s.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never';
+            
+            return `
+              <tr>
+                <td><strong>${s.name}</strong></td>
+                <td>${s.username}</td>
+                <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                <td style="color:var(--gray-text);font-size:0.8rem;">${lastSeenStr}</td>
+                <td>
+                  <button class="action-btn reset" onclick="resetStaffPassword('${s.id}', '${s.name}')">Reset Password</button>
+                  <button class="action-btn delete" onclick="deleteStaff('${s.id}', '${s.name}')">Delete</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-text);">Failed to load staff list.</td></tr>';
+        }
+      } catch (err) {
+        console.error('Staff fetch error:', err);
+        document.getElementById('staffTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-text);">Connection error.</td></tr>';
+      }
+    }
+
+    // ── DELETE STAFF ──
+    async function deleteStaff(id, name) {
+      if (!confirm(`Are you sure you want to delete the staff account for "${name}"?`)) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/staff/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showAlert(`Staff account "${name}" deleted successfully.`, 'success');
+          loadStaff();
+          loadStats();
+        } else {
+          showAlert(data.message || 'Failed to delete staff.', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Could not delete staff account.', 'error');
+      }
+    }
+
+    // ── RESET STAFF PASSWORD ──
+    async function resetStaffPassword(id, name) {
+      const newPassword = prompt(`Enter a new password for "${name}" (minimum 8 characters):`);
+      if (newPassword === null) return; // Cancelled
+      if (newPassword.length < 8) {
+        showAlert('Password must be at least 8 characters long.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/staff/${id}/reset-password`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ newPassword })
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showAlert(`Password reset successfully for "${name}".`, 'success');
+        } else {
+          showAlert(data.message || 'Failed to reset password.', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Could not reset password.', 'error');
+      }
+    }
+
+    // ── LOAD AUDIT LOG ──
+    async function loadAuditLog() {
+      try {
+        const response = await fetch(`${API_BASE}/admin/audit-log?page=1`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        const tBody = document.getElementById('auditTableBody');
+
+        if (response.ok && data.success) {
+          const entries = data.entries.slice(0, 10); // Display only top 10 recent
+          if (entries.length === 0) {
+            tBody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--gray-text);">No activity logged yet.</td></tr>';
+            return;
+          }
+
+          tBody.innerHTML = entries.map(e => {
+            const timeStr = new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = new Date(e.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+            const c = e.changes || {};
+            const changeDesc = `B&W: ₹${c.bwSingleRate?.old ?? '-'}→₹${c.bwSingleRate?.new ?? '-'} (S), ₹${c.bwDoubleRate?.old ?? '-'}→₹${c.bwDoubleRate?.new ?? '-'} (D) | Col: ₹${c.colorSingleRate?.old ?? '-'}→₹${c.colorSingleRate?.new ?? '-'} (S), ₹${c.colorDoubleRate?.old ?? '-'}→₹${c.colorDoubleRate?.new ?? '-'} (D)`;
+            
+            return `
+              <tr>
+                <td><strong>${e.adminUsername}</strong></td>
+                <td style="font-size:0.78rem;color: #111;font-weight:600;">${changeDesc}</td>
+                <td style="color:var(--gray-text);font-size:0.8rem;">${dateStr} ${timeStr}</td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tBody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--gray-text);">Failed to load activity logs.</td></tr>';
+        }
+      } catch (err) {
+        console.error('Audit fetch error:', err);
+        document.getElementById('auditTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center;padding:2rem;color:var(--gray-text);">Connection error.</td></tr>';
+      }
+    }
+
+
+    // ── LOAD PRINT QUEUE ──
+    async function loadPrintQueue() {
+      try {
+        const response = await fetch(`${API_BASE}/orders/all`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        const tBody = document.getElementById('printsTableBody');
+
+        if (response.ok && data.success) {
+          const activeOrders = data.orders.filter(o => o.status !== 'collected');
+          if (activeOrders.length === 0) {
+            tBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-text);">No active orders in queue.</td></tr>';
+            return;
+          }
+
+          tBody.innerHTML = activeOrders.map(o => {
+            const formatStr = `${o.copies}x, ${o.colorMode.toUpperCase()}, ${o.sides === 'single' ? 'Single Sided' : 'Double Sided'}, ${o.pageSize}`;
+            const details = `
+              <div style="font-weight:600;font-size:0.82rem;color: #111;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.fileName}</div>
+              <div style="font-size:0.75rem;color:var(--gray-text);">${formatStr}</div>
+              <div style="font-size:0.72rem;color:#047857;font-weight:700;">${o.priceBreakdown || `Total: ₹${o.amount}`}</div>
+            `;
+            return `
+              <tr>
+                <td style="font-family:monospace;font-size:0.95rem;font-weight:800;color:#111;">${o.tokenNumber || '—'}</td>
+                <td>
+                  <div style="font-weight:700;color:#1f2937;">${o.studentName}</div>
+                  <div style="font-size:0.75rem;color:#4b5563;">Reg: ${o.registerNumber || '—'}</div>
+                </td>
+                <td>${details}</td>
+                <td><span class="status-badge ${o.status}">${o.status}</span></td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-text);">Failed to load print queue.</td></tr>';
+        }
+      } catch (err) {
+        console.error('Print queue fetch error:', err);
+        document.getElementById('printsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-text);">Connection error.</td></tr>';
+      }
+    }
+
+
+    // ── INITIALIZATION ──
+    function init() {
+      loadStats();
+      loadStaff();
+      loadAuditLog();
+      loadPrintQueue();
+    }
+    init();
+
+    // Poll online status and stats every 10s
+    setInterval(() => {
+      loadStats();
+      loadStaff();
+      loadPrintQueue();
+    }, 10000);
+
+    // ── LOGOUT ──
+    function logout() {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminName');
+      window.location.href = 'index.html';
+    }
+  </script>
+
+  
+
+</body>
+</html>

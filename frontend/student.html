@@ -1,0 +1,2685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard - Printsta SECE</title>
+  <meta name="description" content="Upload and print your documents at SECE Copier Center using Printsta.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <!-- PWA Manifest & Mobile Icons -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <meta name="theme-color" content="#0f1a30">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Printsta">
+  <style>
+    :root {
+      --navy: #0f1a30;
+      --navy-dark: #0f1a30;
+      --gold: #f5a623;
+      --white: #ffffff;
+      --off-white: #f8f9fc;
+      --gray-100: #f0f2f7;
+      --gray-400: #9ba3b8;
+      --gray-600: #5a6480;
+      --border: #e2e6ef;
+    }
+
+    * { font-family: 'Plus Jakarta Sans', sans-serif; box-sizing: border-box; }
+
+    body {
+      margin: 0; padding: 0;
+      background: var(--off-white);
+      color: #111;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px;
+      min-height: 100vh;
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      transition: transform 0.3s;
+    }
+
+    .sidebar-logo {
+      padding: 1.5rem 1.25rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .sidebar-logo img {
+      height: 32px; width: auto; object-fit: contain;
+    }
+
+    .sidebar-wordmark { text-decoration: none; font-size: 1.5rem; font-weight: 800; }
+    .sidebar-wordmark .prin { color: var(--white); }
+    .sidebar-wordmark .sta  { color: var(--gold); }
+
+    .sidebar-nav {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 0;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 0.7rem 1.25rem;
+      color: rgba(255,255,255,0.65);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-left: 4px solid transparent;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .sidebar-link:hover, .sidebar-link.active {
+      color: #fff;
+      background: rgba(255,255,255,0.07);
+    }
+
+    .sidebar-link.active {
+      border-left-color: var(--gold);
+      padding-left: calc(1.25rem - 4px);
+    }
+
+    .sidebar-footer {
+      padding: 1rem 1.25rem 1.5rem;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .sidebar-user-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 2px;
+    }
+
+    .sidebar-user-sub {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 0.75rem;
+    }
+
+    .sidebar-logout {
+      width: 100%;
+      padding: 0.5rem;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.75);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sidebar-logout:hover {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+      margin-left: 240px;
+      padding: 2rem;
+      width: calc(100% - 240px);
+      min-height: 100vh;
+    }
+
+    .page-header {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-header h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #111;
+      margin: 0 0 3px;
+    }
+
+    .page-header p {
+      font-size: 0.82rem;
+      color: var(--gray-400);
+      margin: 0;
+      font-weight: 500;
+    }
+
+    /* ── SETTINGS PANEL ── */
+    .settings-panel {
+      display: none;
+    }
+    .settings-panel.active {
+      display: block;
+    }
+
+    .profile-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 500px;
+    }
+
+    .profile-card h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #111;
+      margin: 0 0 1.25rem;
+    }
+
+    .profile-field {
+      margin-bottom: 1rem;
+    }
+
+    .profile-field label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .profile-field p {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #111;
+      margin: 0;
+      padding: 8px 12px;
+      background: var(--off-white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    /* ── DASHBOARD GRID ── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      column-gap: 2rem;
+      row-gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* ── SECTION TITLES ── */
+    .section-title-container { margin-bottom: 1rem; }
+    .section-title {
+      font-size: 1.05rem;
+      color: #111;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .gold-underline {
+      width: 40px; height: 3px;
+      background: var(--gold);
+      border-radius: 2px;
+    }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 1.75rem 1.25rem;
+      text-align: center;
+      background: #fafafa;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 1.25rem;
+      position: relative;
+    }
+    .upload-zone:hover { border-color: #111; background: #f7f8f9; }
+    .upload-icon-svg { width: 40px; height: 40px; fill: var(--gray-400); margin-bottom: 0.5rem; }
+    .upload-text { font-size: 0.9rem; font-weight: 600; color: #111; margin-bottom: 3px; }
+    .upload-subtext { font-size: 0.73rem; color: var(--gray-400); }
+
+    .selected-file-display {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: #eafcf0;
+      border: 1px solid #c2f0d0;
+      padding: 8px;
+      border-radius: 8px;
+      margin-top: 8px;
+      color: #15803d;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    /* ── COPIES COUNTER ── */
+    .copies-counter { display: flex; align-items: center; gap: 0.5rem; }
+    .counter-btn {
+      width: 40px; height: 40px;
+      border: 2px solid var(--border-color);
+      background: var(--panel-bg);
+      color: var(--text-main);
+      border-radius: 8px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .counter-btn:hover { background: var(--border-color); }
+    .counter-value {
+      width: 58px; height: 40px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 700; color: var(--text-main);
+      cursor: text;
+    }
+    .counter-value input {
+      width: 100%; height: 100%;
+      border: none; background: transparent;
+      text-align: center;
+      font-size: 1rem; font-weight: 700;
+      color: var(--text-main);
+      outline: none;
+      padding: 0;
+    }
+    /* Hide number input spinners */
+    .counter-value input::-webkit-inner-spin-button,
+    .counter-value input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    /* Classic rotating circle spinner */
+    .spinner-circle {
+      width: 42px;
+      height: 42px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--navy, #1A2A4A);
+      border-radius: 50%;
+      animation: spinCircle 0.8s linear infinite;
+    }
+    @keyframes spinCircle {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* ── OPTION CARDS ── */
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .option-card {
+      background: var(--gray-100);
+      border: 2px solid transparent;
+      border-radius: 10px;
+      padding: 0.85rem 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .option-card:hover { border-color: #d1d5db; }
+    .option-card.selected { border-color: var(--gold); background: #fff8e6; }
+    .option-card-title { font-weight: 700; font-size: 0.9rem; color: #111; margin-bottom: 2px; }
+    .option-card-sub { font-size: 0.76rem; color: var(--gray-400); }
+
+    /* ── TOTAL BOX ── */
+    .total-box {
+      background: var(--gray-100);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .total-label { font-size: 0.73rem; color: var(--gray-400); text-transform: uppercase; font-weight: 600; margin-bottom: 2px; }
+    .total-amount { font-size: 1.8rem; font-weight: 800; color: #111; }
+
+    /* ── ORDERS ── */
+    .orders-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .order-card {
+      background: white;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+
+    .order-details { flex: 1; padding-right: 0.75rem; }
+    .order-line1 { font-weight: 700; font-size: 0.88rem; color: #111; margin-bottom: 3px; word-break: break-all; }
+    .order-token { color: var(--gold); font-weight: 800; }
+    .order-line2 { font-size: 0.76rem; color: var(--gray-400); }
+
+    .status-badge {
+      padding: 5px 10px; border-radius: 20px;
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: capitalize; white-space: nowrap;
+    }
+    .status-collected { background: #e5e7eb; color: #374151; }
+    .status-pending   { background: #fee2e2; color: #dc2626; }
+    .status-waiting   { background: #fef9c3; color: #92400e; }
+    .status-printing  { background: #dbeafe; color: #1d4ed8; }
+    .status-ready     { background: #dcfce7; color: #15803d; }
+
+    .empty-state { color: var(--gray-400); text-align: center; padding: 2.5rem 1rem; font-size: 0.88rem; }
+
+    .past-orders-toggle {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #111;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* ── MODALS ── */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(26,42,74,0.6);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 2000;
+    }
+
+    .success-modal {
+      background: white; border-radius: 14px;
+      padding: 2.25rem 1.5rem;
+      max-width: 380px; width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+    }
+
+    .mock-payment-modal {
+      background: white; border-radius: 14px;
+      padding: 2rem;
+      max-width: 380px; width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+    }
+
+    .success-icon {
+      width: 56px; height: 56px;
+      background: #dcfce7; color: #15803d;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem;
+    }
+    .success-icon svg { width: 28px; height: 28px; fill: currentColor; }
+    .success-token-title { font-size: 0.8rem; color: var(--gray-400); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+    .success-token-num { font-size: 2.25rem; font-weight: 800; color: var(--gold); margin: 0.2rem 0; }
+    .success-msg { font-size: 0.88rem; color: #111; font-weight: 600; margin-bottom: 1.25rem; }
+
+    .btn-barcode {
+      background: linear-gradient(135deg, #0ea5e9, #0369a1);
+      color: white; border: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.76rem; font-weight: 700;
+      cursor: pointer; margin-top: 0.4rem;
+      display: inline-flex; align-items: center; gap: 4px;
+      transition: opacity 0.2s;
+    }
+    .btn-barcode:hover { opacity: 0.88; }
+
+    /* ── MOBILE HEADER ── */
+    .mobile-header {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: var(--navy);
+      z-index: 99;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+    }
+
+    .hamburger-btn {
+      background: none; border: none;
+      color: white; font-size: 1.4rem; cursor: pointer;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 99;
+    }
+
+    .sidebar-backdrop.show { display: block; }
+
+    /* ── MOBILE BOTTOM NAVIGATION ── */
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: var(--navy);
+      z-index: 999;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+      padding: 0 8px;
+    }
+
+    .mobile-nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.65);
+      cursor: pointer;
+      font-size: 0.72rem;
+      font-weight: 700;
+      transition: all 0.2s;
+      padding: 6px 0;
+      position: relative;
+    }
+
+    .mobile-nav-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+    }
+
+    .mobile-nav-btn.active {
+      color: var(--gold);
+    }
+
+    .mobile-nav-badge {
+      position: absolute;
+      top: 3px;
+      right: calc(50% - 16px);
+      background: var(--gold);
+      color: var(--navy);
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 10px;
+    }
+
+    /* PWA Install Banner */
+    .pwa-install-card {
+      display: none;
+      background: linear-gradient(135deg, #0f1a30, #1a2a4a);
+      border: 1px solid rgba(245, 166, 35, 0.35);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      color: white;
+      margin-bottom: 1.25rem;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 4px 15px rgba(15, 26, 48, 0.15);
+    }
+
+    .pwa-install-btn {
+      background: var(--gold);
+      color: var(--navy);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: transform 0.15s;
+    }
+    .pwa-install-btn:active { transform: scale(0.96); }
+
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-header { display: flex; }
+      .mobile-bottom-nav { display: flex; }
+      .main-content { margin-left: 0; padding: calc(56px + 1.25rem) 1rem 84px; width: 100%; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    @keyframes shakeHorizontal {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+    .shake-animation {
+      animation: shakeHorizontal 0.5s ease-in-out !important;
+    }
+
+    /* Profile Photo Modal & SlideUp Transition */
+    .profile-pic-modal {
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 26, 48, 0.45);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .profile-pic-modal.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .profile-pic-modal-content {
+      background-color: #ffffff;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: 0 10px 30px rgba(15, 26, 48, 0.15);
+      overflow: hidden;
+      transform: translateY(20px);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid var(--border);
+    }
+    .profile-pic-modal.active .profile-pic-modal-content {
+      transform: translateY(0);
+    }
+    .profile-pic-modal-btn {
+      width: 100%;
+      padding: 1.15rem;
+      background: none;
+      border: none;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      outline: none;
+      text-align: center;
+    }
+    .profile-pic-modal-btn:hover {
+      background-color: var(--off-white);
+    }
+    .profile-pic-modal-btn:active {
+      background-color: var(--gray-100);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Alert popup -->
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Loading modal with classic rotating circle spinner -->
+  <div id="loadingModalOverlay" class="modal-overlay" style="z-index:99999;">
+    <div style="background:#fff; padding:28px 36px; border-radius:16px; display:flex; flex-direction:column; align-items:center; gap:16px; box-shadow:0 12px 30px rgba(0,0,0,0.18);">
+      <div class="spinner-circle"></div>
+      <div id="loadingModalText" style="color:var(--navy); font-weight:700; font-size:1rem;">Processing payment...</div>
+    </div>
+  </div>
+
+  <!-- Success modal -->
+  <div id="successModalOverlay" class="modal-overlay">
+    <div class="success-modal">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      </div>
+      <div class="success-token-title">Token Assigned</div>
+      <div id="successTokenNum" class="success-token-num">SECE-XXXX</div>
+      <div class="success-msg">Show this token at the copier center</div>
+      <button type="button" class="btn-primary" onclick="closeSuccessModal()">Done</button>
+    </div>
+  </div>
+
+  <!-- Barcode modal -->
+  <div id="barcodeModalOverlay" class="modal-overlay">
+    <div class="success-modal">
+      <h3 style="color:var(--navy);margin-bottom:0.5rem;font-size:1.1rem;">Collection Barcode</h3>
+      <div style="background:white;padding:0.5rem;border-radius:8px;margin:1rem 0;border:1px solid #e2e8f0;min-height:110px;display:flex;align-items:center;justify-content:center;">
+        <img id="barcodeImg" src="" alt="Barcode" style="max-width:100%;height:auto;display:block;">
+      </div>
+      <div id="barcodeTokenText" style="font-size:1.6rem;font-weight:800;color:var(--gold);margin-bottom:0.5rem;">SECE-XXXX</div>
+      <button type="button" class="btn-primary" onclick="closeBarcodeModal()">Close</button>
+    </div>
+  </div>
+
+  <!-- Mock payment modal -->
+  <div id="mockPaymentOverlay" class="modal-overlay">
+    <div class="mock-payment-modal">
+      <h3 style="color:var(--navy);margin-bottom:0.5rem;">Razorpay Test Sandbox</h3>
+      <p style="font-size:0.85rem;color:var(--gray-400);margin-bottom:1.25rem;">You are using placeholder credentials. Click Pay Now to simulate a successful payment.</p>
+      <div class="total-box" style="margin-bottom:1.25rem;">
+        <div class="total-label">Amount</div>
+        <div class="total-amount" id="mockPayAmount">₹1.00</div>
+      </div>
+      <button type="button" id="mockPayBtn" class="btn-primary" style="margin-bottom:0.75rem;">Pay Now</button>
+      <button type="button" class="btn-secondary" onclick="closeMockPaymentModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Past Orders Modal -->
+  <div id="pastOrdersModal" class="modal-overlay" style="align-items:flex-end;">
+    <div style="background:white;border-radius:16px 16px 0 0;width:100%;max-width:680px;margin:0 auto;padding:1.5rem;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h3 style="font-size:1rem;font-weight:700;color:var(--navy);margin:0;">Past Orders</h3>
+        <button onclick="closePastOrders()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--gray-400);">&times;</button>
+      </div>
+      <p style="font-size:0.78rem;color:var(--gray-400);margin:0 0 1rem;">Orders from the last 3 months</p>
+      <div id="pastOrdersList"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- Contact Us Modal -->
+  <div id="contactModalOverlay" class="modal-overlay">
+    <div class="success-modal" style="max-width: 400px; text-align: left;">
+      <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--navy); margin-top: 0;">Contact Us</h3>
+      <p style="color: var(--gray-400); font-size: 0.88rem;">For support or queries, reach us at:</p>
+      <div style="margin: 1.25rem 0; display: flex; align-items: center; gap: 10px;">
+        <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: var(--navy);"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        <span style="font-weight: 700; font-size: 0.95rem; color: #111;">prinsta.sece@gmail.com</span>
+      </div>
+      <button type="button" class="btn-primary" onclick="closeContactModal()" style="width: 100%;">Close</button>
+    </div>
+  </div>
+
+  <!-- About Us Modal -->
+  <div id="aboutModalOverlay" class="modal-overlay">
+    <div class="success-modal" style="max-width: 400px; text-align: left;">
+      <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--navy); margin-top: 0;">About Prinsta</h3>
+      <p style="color: var(--gray-400); font-size: 0.88rem; line-height: 1.4;">Prinsta is a smart print ordering system built for students of Sri Eshwar College of Engineering.</p>
+      <div style="margin: 1rem 0;">
+        <p style="font-size: 0.75rem; color: var(--gray-400); font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Made with ❤️ by</p>
+        <div style="font-weight: 700; font-size: 0.95rem; color: #111; display: flex; flex-direction: column; gap: 4px;">
+          <span>Kavin GS</span>
+          <span>Kavin SSG</span>
+          <span>Karthegaeyen K</span>
+          <span>Abhishek C</span>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--gray-400); margin: 8px 0 0;">Dept. of ECE, SECE</p>
+      </div>
+      <button type="button" class="btn-primary" onclick="closeAboutModal()" style="width: 100%;">Close</button>
+    </div>
+  </div>
+
+
+  <!-- Mobile header -->
+  <div class="mobile-header">
+    <button class="hamburger-btn" onclick="toggleSidebar()">&#9776;</button>
+    <a href="student.html" class="sidebar-wordmark" style="font-size:1.15rem;"><span class="prin">prin</span><span class="sta">sta</span></a>
+    <div style="width:28px;"></div>
+  </div>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <a href="student.html" class="sidebar-wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="sidebar-link active" id="linkDashboard" onclick="showPanel('dashboard')">New Order</a>
+      <a class="sidebar-link" id="linkCart" onclick="showPanel('cart')">My Cart <span id="cartBadge" style="background:var(--gold); color:var(--navy); font-size:0.7rem; font-weight:800; padding:2px 7px; border-radius:10px; margin-left:6px; display:none;">0</span></a>
+      <a class="sidebar-link" id="linkMyorders" onclick="showPanel('myorders')">My Orders</a>
+      <a class="sidebar-link" id="linkSettings" onclick="showPanel('settings')">Profile</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user-name" id="sidebarUserName">Student</div>
+      <div class="sidebar-user-sub">SECE Copier Center</div>
+      <button class="sidebar-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="main-content">
+
+    <!-- DASHBOARD PANEL -->
+    <div id="panelDashboard">
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h1>New Print Order</h1>
+          <p>Upload your file, choose options, and pay to get a token.</p>
+        </div>
+        <a href="printsta.apk" download style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: white; color: var(--navy); border: 1.5px solid var(--border); border-radius: 20px; font-weight: 700; font-size: 0.82rem; text-decoration: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04); transition: all 0.2s ease;">
+          <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: var(--gold);"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+          <span>Install App</span>
+        </a>
+      </div>
+
+      <div style="margin-top: 1.5rem; width: 100%;">
+        <div class="dashboard-grid">
+          
+          <!-- Left Column: Form -->
+          <section style="background: white; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+            <div class="section-title-container">
+              <h2 class="section-title">Upload & Order</h2>
+              <div class="gold-underline"></div>
+            </div>
+
+            <form id="printOrderForm">
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label>Order Option</label>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <select id="orderTypeSelect" onchange="toggleOrderType()" style="flex:1; padding:0.75rem; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; font-weight:600; color:#111; outline:none; cursor:pointer;">
+                    <option value="print" selected>Print Document</option>
+                    <option value="xerox">Xerox / Photocopy</option>
+                  </select>
+                  <button type="button" id="xeroxInfoBtn" onclick="toggleXeroxInfo()" title="How Xerox works" style="display:none; width:30px; height:30px; border-radius:50%; border:1.5px solid #3b82f6; background:#eff6ff; color:#1d4ed8; font-weight:800; font-size:0.9rem; cursor:pointer; flex-shrink:0; align-items:center; justify-content:center;">i</button>
+                </div>
+              </div>
+
+              <!-- Xerox info box (shown on i-button click) -->
+              <div id="xeroxInfoBox" style="display:none; margin-top:10px; padding:12px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:0.82rem; color:#1e3a5f; line-height:1.6;">
+                <strong style="display:block; margin-bottom:6px;">How to fill Page Count:</strong>
+                Enter the total number of pages of your original document.<br>
+                &bull; <strong>Single-sided:</strong> Enter the page count (e.g., 10 pages will print 10 sheets).<br>
+                &bull; <strong>Double-sided:</strong> Enter the page count (e.g., 10 pages will print 5 sheets double-sided).<br>
+                Cost is calculated automatically based on total page sides.
+              </div>
+
+              <div class="form-group" id="groupUpload" style="margin-bottom: 1.25rem;">
+                <label>Upload Document</label>
+                <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" style="margin-bottom: 0;">
+                  <svg class="upload-icon-svg" viewBox="0 0 24 24">
+                    <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                  </svg>
+                  <div class="upload-text">Drag and drop or click to choose a file</div>
+                  <div class="upload-subtext">PDF, JPG, PNG, DOCX — max 50MB</div>
+                  <input type="file" id="fileInput" style="display:none;" accept=".pdf,.jpg,.jpeg,.png,.docx">
+                  <div class="selected-file-display" id="selectedFileDisplay">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    <span id="selectedFileName">filename.pdf</span>
+                  </div>
+                </div>
+                <div id="formErrorMessage" style="color:#dc2626; font-family:'Times New Roman', Times, serif; font-size:0.85rem; margin-top:8px; font-weight:bold; display:none; text-align:center;"></div>
+              </div>
+
+              <div class="form-group" id="groupPagesManual" style="display:none; margin-bottom: 1.25rem;">
+                <label>Number of Pages to Xerox</label>
+                <input type="number" id="pagesManualInput" value="1" min="1" oninput="onPagesManualInput(this)" style="width:100%; padding:0.75rem; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; outline:none; font-weight:600; color:#111;">
+              </div>
+
+              <div id="detectedPagesInfo" style="display:none;font-size:0.78rem;color:#15803d;font-weight:600;margin-bottom:1.25rem;padding:6px 10px;background:#f0fdf4;border-radius:6px;"></div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label>Number of Copies</label>
+                <div class="copies-counter">
+                  <div class="counter-btn" onclick="updateCopies(-1)">−</div>
+                  <div class="counter-value">
+                    <input type="number" id="copiesVal" value="1" min="1" max="99"
+                      oninput="onCopiesInput(this)"
+                      onblur="onCopiesBlur(this)"
+                      onclick="this.select()"
+                      title="Click to type number of copies">
+                  </div>
+                  <div class="counter-btn" onclick="updateCopies(1)">+</div>
+                </div>
+                <input type="hidden" id="pagesInput" value="1">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label>Color Mode</label>
+                <div class="card-grid">
+                  <div class="option-card selected" id="cardBw" onclick="selectColorMode('bw')">
+                    <div class="option-card-title">Black & White</div>
+                    <div class="option-card-sub" id="labelBwRate">₹1 / page</div>
+                  </div>
+                  <div class="option-card" id="cardColor" onclick="selectColorMode('color')">
+                    <div class="option-card-title">Color</div>
+                    <div class="option-card-sub" id="labelColorRate">₹5 / page</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label>Sides</label>
+                <div class="card-grid">
+                  <div class="option-card selected" id="cardSingle" onclick="selectSides('single')">
+                    <div class="option-card-title">Single-sided</div>
+                    <div class="option-card-sub">Standard print</div>
+                  </div>
+                  <div class="option-card" id="cardDouble" onclick="selectSides('double')">
+                    <div class="option-card-title">Double-sided</div>
+                    <div class="option-card-sub" id="labelDiscount">Saves paper</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="pageSize">Page Size</label>
+                <div class="input-wrapper">
+                  <select id="pageSize" onchange="calculatePrice()">
+                    <option value="A4" selected>A4</option>
+                    <option value="A3">A3</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="binding">Binding Option</label>
+                <div class="input-wrapper">
+                  <select id="binding" onchange="calculatePrice()">
+                    <option value="none" selected>None</option>
+                    <option value="calico">Calico Binding (+₹30/copy)</option>
+                    <option value="spiral">Spiral Binding (+₹30/copy)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="specialNote">Special Instructions</label>
+                <div class="input-wrapper">
+                  <textarea id="specialNote" rows="2" maxlength="60" placeholder="Optional notes for operator"></textarea>
+                </div>
+                <div style="font-size: 0.7rem; color: var(--gray-400); margin-top: 4px; text-align: right;">Max 60 characters</div>
+              </div>
+
+              <div class="total-box" style="display:flex; flex-direction:column; gap:4px; margin-bottom:1rem; padding:1rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div class="total-label">Total cost</div>
+                  <div class="total-amount">₹<span id="estimatedTotal">0</span></div>
+                </div>
+                <div id="priceBreakdown" style="font-size:0.78rem; color:var(--gray-400); font-weight:600; text-align:right;">-</div>
+              </div>
+
+              <button type="submit" class="btn-primary" id="submitBtn" style="margin-top:0.5rem;">Upload & Add to Cart</button>
+            </form>
+          </section>
+
+          <!-- Right Column: Active Orders (Printing/Waiting Queue) -->
+          <section style="background: white; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+            <div class="section-title-container" style="margin-bottom:1rem;">
+              <h2 class="section-title">Active Orders</h2>
+              <div class="gold-underline"></div>
+            </div>
+            <p style="font-size:0.82rem;color:var(--gray-600);margin-bottom:1.5rem;line-height:1.45;">
+              Orders currently waiting or printing. Show barcode to staff when status turns Ready.
+            </p>
+            <div class="orders-list" id="ordersQueue" style="display: flex; flex-direction: column; gap: 0.85rem; width: 100%;">
+              <div class="empty-state">Loading...</div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- CART PANEL -->
+    <div id="panelCart" style="display: none; margin-top: 1rem;">
+      <div class="page-header">
+        <h1>My Shopping Cart</h1>
+        <p>Review and modify your print order items before finalizing payment.</p>
+      </div>
+
+      <div style="margin-top: 1.5rem; width: 100%;">
+        <div class="dashboard-grid">
+          
+          <!-- Left Column: Cart Items List -->
+          <section style="background: white; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+            <div class="section-title-container" style="margin-bottom: 1.5rem;">
+              <h2 class="section-title">Cart Items (<span id="cartItemCount">0</span>)</h2>
+              <div class="gold-underline"></div>
+            </div>
+
+            <div id="cartItemsList" style="display: flex; flex-direction: column; gap: 1rem;">
+              <div class="empty-state">Your cart is empty. Add documents from the New Order tab.</div>
+            </div>
+          </section>
+
+          <!-- Right Column: Cart Summary & Checkout Box -->
+          <section style="background: white; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 100%; height: fit-content; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+            <div class="section-title-container" style="margin-bottom: 1.5rem;">
+              <h2 class="section-title">Order Summary</h2>
+              <div class="gold-underline"></div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.75rem; font-size:0.9rem; color:var(--gray-600);">
+              <span>Total Documents:</span>
+              <span id="cartSummaryDocs" style="font-weight:700; color:#111;">0</span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem; font-size:0.9rem; color:var(--gray-600);">
+              <span>Total Copies:</span>
+              <span id="cartSummaryCopies" style="font-weight:700; color:#111;">0</span>
+            </div>
+
+            <div class="total-box" style="display:flex; flex-direction:column; gap:4px; margin-bottom:1.5rem; padding:1.25rem; background:#f8f9fc; border-radius:12px; border:1px solid var(--border);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="total-label" style="font-weight:700; font-size:1rem; color:var(--navy);">Grand Total</div>
+                <div class="total-amount" style="font-size:1.5rem; font-weight:800; color:var(--navy);">₹<span id="cartGrandTotal">0</span></div>
+              </div>
+            </div>
+
+            <button type="button" class="btn-primary" id="cartCheckoutBtn" onclick="checkoutCart()" style="width:100%; padding:14px; font-weight:700; font-size:1rem;" disabled>
+              Proceed to Pay
+            </button>
+          </section>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- MY ORDERS PANEL -->
+    <div id="panelMyorders" style="display: none; margin-top: 1rem;">
+      <div class="page-header">
+        <h1>My Orders</h1>
+        <p>View your completed print orders history.</p>
+      </div>
+
+      <div style="margin-top: 1rem; width: 100%;">
+        <section style="background: white; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+          <div class="section-title-container" style="margin-bottom:1.5rem;">
+            <h2 class="section-title">Completed Orders</h2>
+            <div class="gold-underline"></div>
+          </div>
+          <p style="font-size:0.82rem;color:var(--gray-600);margin-bottom:1.5rem;line-height:1.45;">
+            History of your collected print orders.
+          </p>
+          <div class="orders-list" id="completedOrdersQueue" style="display: flex; flex-direction: column; gap: 0.85rem; width: 100%;">
+            <div class="empty-state">Loading...</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- SETTINGS PANEL -->
+    <div id="panelSettings" class="settings-panel">
+      <div class="page-header">
+        <h1>Profile & Account</h1>
+        <p>Manage your account settings and profile details</p>
+      </div>
+
+      <div style="max-width: 650px; margin-top: 1rem;">
+        <!-- Profile Header Banner -->
+        <div class="profile-header-banner" style="background: var(--navy); color: white; padding: 1.75rem; border-radius: 16px; display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 4px 20px rgba(26, 42, 74, 0.15);">
+          <div id="profileAvatarContainer" onclick="showProfilePicOptions()" style="width: 68px; height: 68px; background: rgba(255, 255, 255, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2.5px solid rgba(255, 255, 255, 0.3); flex-shrink: 0; position: relative; cursor: pointer; background-size: cover; background-position: center; transition: all 0.2s;">
+            <svg id="profileAvatarDefaultSvg" viewBox="0 0 24 24" style="width: 36px; height: 36px; fill: white;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <div style="position: absolute; right: -2px; bottom: -2px; background: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+              <svg viewBox="0 0 24 24" style="width: 12px; height: 12px; fill: var(--navy);"><path d="M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0 -6.4 0M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/></svg>
+            </div>
+          </div>
+          <input type="file" id="profilePicFileInput" accept="image/*" style="display:none;" onchange="handleProfilePicUpload(this)">
+          <div>
+            <h2 id="settingsHeaderName" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: white;">—</h2>
+            <p id="settingsHeaderPhone" style="margin: 4px 0 0; font-size: 0.95rem; color: rgba(255,255,255,0.8); font-weight: 500;">—</p>
+          </div>
+        </div>
+
+        <!-- Account Settings Accordion Group -->
+        <div style="background: white; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+          <!-- Accordion 1: My Profile -->
+          <div class="accordion-item" style="border-bottom: 1px solid var(--border);">
+            <button class="accordion-header" onclick="toggleAccordion('settingsProfile')" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.25rem; background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--navy); cursor: pointer; text-align: left; transition: background 0.2s; outline: none;">
+              <span style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: var(--navy);"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                My Profile
+              </span>
+              <svg class="chevron-icon" id="chevron-settingsProfile" viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: var(--gray-400); transition: transform 0.2s;"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </button>
+            <div class="accordion-body" id="body-settingsProfile" style="display: none; padding: 0 1.25rem 1.25rem; background: #fafafa;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; padding-top: 1rem;">
+                <div class="profile-field" style="margin-bottom: 0;">
+                  <label style="font-size:0.7rem; color:var(--gray-400); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Full Name</label>
+                  <p id="profileName" style="font-size:0.92rem; font-weight:600; color:#111; margin:3px 0 0;">—</p>
+                </div>
+                <div class="profile-field" style="margin-bottom: 0;">
+                  <label style="font-size:0.7rem; color:var(--gray-400); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Register Number</label>
+                  <p id="profileRegNum" style="font-size:0.92rem; font-weight:600; color:#111; margin:3px 0 0;">—</p>
+                </div>
+                <div class="profile-field" style="margin-bottom: 0;">
+                  <label style="font-size:0.7rem; color:var(--gray-400); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Department</label>
+                  <p id="profileDept" style="font-size:0.92rem; font-weight:600; color:#111; margin:3px 0 0;">—</p>
+                </div>
+                <div class="profile-field" style="margin-bottom: 0;">
+                  <label style="font-size:0.7rem; color:var(--gray-400); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Batch / Year</label>
+                  <p id="profileYear" style="font-size:0.92rem; font-weight:600; color:#111; margin:3px 0 0;">—</p>
+                </div>
+                <div class="profile-field" style="margin-bottom: 0;">
+                  <label style="font-size:0.7rem; color:var(--gray-400); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Email Address</label>
+                  <p id="profileEmail" style="font-size:0.92rem; font-weight:600; color:#111; margin:3px 0 0;">—</p>
+                </div>
+                <div class="profile-field" style="margin-bottom: 0;">
+                  <label style="font-size:0.7rem; color:var(--gray-400); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Phone Number</label>
+                  <p id="profilePhone" style="font-size:0.92rem; font-weight:600; color:#111; margin:3px 0 0;">—</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Accordion 3: Notifications -->
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion('settingsNotifications')" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.25rem; background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--navy); cursor: pointer; text-align: left; transition: background 0.2s; outline: none;">
+              <span style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: var(--navy);"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                Notifications
+              </span>
+              <svg class="chevron-icon" id="chevron-settingsNotifications" viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: var(--gray-400); transition: transform 0.2s;"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </button>
+            <div class="accordion-body" id="body-settingsNotifications" style="display: none; padding: 0 1.25rem 1.25rem; background: #fafafa;">
+              <div style="margin-top: 1rem; text-align: center; color: var(--gray-400); padding: 1.5rem 0;">
+                <svg viewBox="0 0 24 24" style="width: 40px; height: 40px; fill: var(--gray-300); margin-bottom: 8px;"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+                <p style="margin: 0; font-size: 0.9rem; font-weight: 700; color: #111;">No notifications yet</p>
+                <p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--gray-400);">You'll be notified here when your print jobs are marked ready.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prinsta settings group -->
+        <div style="background: white; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+
+          <!-- Download Android APK -->
+          <div class="accordion-item" style="border-bottom: 1px solid var(--border);">
+            <a href="printsta.apk" download class="accordion-header" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.25rem; background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--navy); cursor: pointer; text-align: left; text-decoration: none; transition: background 0.2s; outline: none; border-radius: 0;">
+              <span style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: var(--navy);"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                Install App
+              </span>
+              <span style="background: var(--gold); color: var(--navy); font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 20px;">APK</span>
+            </a>
+          </div>
+
+          <div class="accordion-item" style="border-bottom: 1px solid var(--border);">
+            <button class="accordion-header" onclick="window.open('https://play.google.com/store/apps/details?id=com.sece.printsta_app', '_blank')" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.25rem; background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--navy); cursor: pointer; text-align: left; transition: background 0.2s; outline: none;">
+              <span style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: var(--navy);"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                Rate Our App
+              </span>
+              <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: var(--gray-400);"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </button>
+          </div>
+
+          <div class="accordion-item" style="border-bottom: 1px solid var(--border);">
+            <button class="accordion-header" onclick="showSettingsContact()" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.25rem; background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--navy); cursor: pointer; text-align: left; transition: background 0.2s; outline: none;">
+              <span style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: var(--navy);"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                Contact Us
+              </span>
+              <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: var(--gray-400);"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </button>
+          </div>
+
+          <div class="accordion-item">
+            <button class="accordion-header" onclick="showSettingsAbout()" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.25rem; background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--navy); cursor: pointer; text-align: left; transition: background 0.2s; outline: none;">
+              <span style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: var(--navy);"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                About Us
+              </span>
+              <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: var(--gray-400);"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main-content -->
+
+  <script>
+    // Auth check
+    const token = localStorage.getItem('studentToken');
+    if (!token) window.location.href = 'index.html';
+
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+    const studentName = localStorage.getItem('studentName') || 'Student';
+
+    // ── SIDEBAR TOGGLE ──
+    function toggleSidebar() {
+      const s = document.getElementById('sidebar');
+      const b = document.getElementById('sidebarBackdrop');
+      if (s && b) { s.classList.toggle('open'); b.classList.toggle('show'); }
+    }
+
+    // ── PANEL SWITCHING ──
+    function showPanel(name) {
+      const dash = document.getElementById('panelDashboard');
+      const cart = document.getElementById('panelCart');
+      const myorders = document.getElementById('panelMyorders');
+      const settings = document.getElementById('panelSettings');
+      
+      if (dash) dash.style.display = 'none';
+      if (cart) cart.style.display = 'none';
+      if (myorders) myorders.style.display = 'none';
+      if (settings) settings.classList.remove('active');
+
+      if (name === 'dashboard') {
+        if (dash) dash.style.display = '';
+      } else if (name === 'cart') {
+        if (cart) cart.style.display = '';
+        renderCart();
+      } else if (name === 'myorders') {
+        if (myorders) myorders.style.display = '';
+        loadMyOrders();
+      } else if (name === 'settings') {
+        if (settings) settings.classList.add('active');
+        loadProfile();
+        loadSettingsPastOrders();
+      }
+
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      const activeEl = document.getElementById('link' + name.charAt(0).toUpperCase() + name.slice(1));
+      if (activeEl) {
+        activeEl.classList.add('active');
+      }
+
+      // Sync mobile bottom navigation bar
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+      const activeMNav = document.getElementById('mNav' + name.charAt(0).toUpperCase() + name.slice(1));
+      if (activeMNav) {
+        activeMNav.classList.add('active');
+      }
+
+      // Haptic feedback on mobile if supported
+      if (navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+
+      const s = document.getElementById('sidebar');
+      if (window.innerWidth <= 900 && s && s.classList.contains('open')) toggleSidebar();
+    }
+
+    // ── LOGOUT ──
+    function doLogout() {
+      localStorage.removeItem('studentToken');
+      localStorage.removeItem('studentName');
+      window.location.href = 'index.html';
+    }
+
+    // ── THEME TOGGLE ──
+    
+
+    
+    // Helper to parse JWT payload client-side for immediate display
+    function parseJwt(tokenStr) {
+      try {
+        const base64Url = tokenStr.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(window.atob(base64));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // ── PROFILE PICTURE UPLOAD ──
+    function handleProfilePicUpload(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 2 * 1024 * 1024) {
+          showAlert('Image size exceeds 2MB limit.', 'error');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Img = e.target.result;
+          const email = document.getElementById('profileEmail')?.textContent || 'default';
+          const prefKey = `profile_pic_${email.replace(/@/g, '_').replace(/\./g, '_')}`;
+          
+          localStorage.setItem(prefKey, base64Img);
+          displayProfilePic(base64Img);
+          showAlert('Profile picture updated successfully!', 'success');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function displayProfilePic(base64Img) {
+      const container = document.getElementById('profileAvatarContainer');
+      const defaultSvg = document.getElementById('profileAvatarDefaultSvg');
+      if (container) {
+        if (base64Img) {
+          container.style.backgroundImage = `url(${base64Img})`;
+          if (defaultSvg) defaultSvg.style.display = 'none';
+        } else {
+          container.style.backgroundImage = '';
+          if (defaultSvg) defaultSvg.style.display = 'block';
+        }
+      }
+    }
+
+    // ── LOAD PROFILE ──
+    async function loadProfile() {
+      const nameEl  = document.getElementById('profileName');
+      const regEl   = document.getElementById('profileRegNum');
+      const deptEl  = document.getElementById('profileDept');
+      const yearEl  = document.getElementById('profileYear');
+      const emailEl = document.getElementById('profileEmail');
+      const phoneEl = document.getElementById('profilePhone');
+
+      // 1. Immediately populate from localStorage & JWT payload so fields are NEVER blank
+      const cachedName = localStorage.getItem('studentName') || 'Student';
+      if (nameEl && nameEl.textContent === '—') nameEl.textContent = cachedName;
+
+      const headerNameEl = document.getElementById('settingsHeaderName');
+      const headerPhoneEl = document.getElementById('settingsHeaderPhone');
+      if (headerNameEl && headerNameEl.textContent === '—') headerNameEl.textContent = cachedName;
+
+      const jwtPayload = parseJwt(token);
+      if (jwtPayload) {
+        if (jwtPayload.name && nameEl) nameEl.textContent = jwtPayload.name;
+        if (jwtPayload.name && headerNameEl) headerNameEl.textContent = jwtPayload.name;
+        if (jwtPayload.email && emailEl) emailEl.textContent = jwtPayload.email;
+      }
+
+      // 2. Fetch live profile data from backend
+      try {
+        const res = await fetch(`${API_BASE}/auth/student/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.student) {
+          const s = data.student;
+          const fullName = [s.firstName, s.lastName].filter(Boolean).join(' ') || cachedName;
+          if (nameEl)  nameEl.textContent  = fullName;
+          if (headerNameEl) headerNameEl.textContent = fullName;
+          if (regEl)   regEl.textContent   = s.registerNumber || 'Not registered';
+          if (deptEl)  deptEl.textContent  = s.department || 'Not specified';
+          if (yearEl)  yearEl.textContent  = s.batch || 'Not specified';
+          if (emailEl) emailEl.textContent = s.email || (jwtPayload ? jwtPayload.email : 'Not specified');
+          if (phoneEl) phoneEl.textContent = s.phone || 'Not specified';
+          if (headerPhoneEl) headerPhoneEl.textContent = s.phone ? `+91 ${s.phone}` : 'No phone number';
+        }
+      } catch(e) {
+        console.error("loadProfile error:", e);
+      }
+
+      // 3. Load saved profile picture from localStorage
+      const email = (emailEl && emailEl.textContent !== '—') ? emailEl.textContent : ((jwtPayload ? jwtPayload.email : '') || 'default');
+      if (email) {
+        const prefKey = `profile_pic_${email.replace(/@/g, '_').replace(/\./g, '_')}`;
+        const savedPic = localStorage.getItem(prefKey);
+        if (savedPic) {
+          displayProfilePic(savedPic);
+        } else {
+          displayProfilePic(null);
+        }
+      }
+    }
+
+
+    // ── CHECK PROFILE & SET NAME ──
+    async function checkProfileCompleteness() {
+      try {
+        const res = await fetch(`${API_BASE}/auth/student/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const student = data.student;
+          if (!student.registerNumber || student.registerNumber.trim() === '') {
+            window.location.href = 'complete-profile.html';
+          } else {
+            const n = [student.firstName, student.lastName].filter(Boolean).join(' ') || studentName;
+            document.getElementById('sidebarUserName').textContent = n;
+          }
+        }
+      } catch(e) { console.error(e); }
+    }
+    checkProfileCompleteness();
+    loadLivePricing();
+
+    // ── PRICING STATE ──
+    let selectedFile = null;
+    let copies = 1;
+    let colorMode = 'bw';
+    let sides = 'single';
+    let pdfPageCount = 1;
+    let livePricing = { bwSingleRate: 2, bwDoubleRate: 3, colorSingleRate: 5, colorDoubleRate: 7 };
+
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    async function loadLivePricing() {
+      try {
+        const res = await fetch(`${API_BASE}/settings/pricing`);
+        const data = await res.json();
+        if (data.success) {
+          livePricing = data.pricing;
+          const bwLabel    = document.getElementById('labelBwRate');
+          const colorLabel = document.getElementById('labelColorRate');
+          if (bwLabel)    bwLabel.textContent    = `₹${livePricing.bwSingleRate} (single) / ₹${livePricing.bwDoubleRate} (double)`;
+          if (colorLabel) colorLabel.textContent = `₹${livePricing.colorSingleRate} (single) / ₹${livePricing.colorDoubleRate} (double)`;
+          calculatePrice();
+        }
+      } catch(e) { console.warn('Could not fetch pricing:', e); }
+    }
+
+    function showLoading(msg = 'Processing payment...') {
+      const modal = document.getElementById('loadingModalOverlay');
+      const txt = document.getElementById('loadingModalText');
+      if (modal && txt) {
+        txt.textContent = msg;
+        modal.style.display = 'flex';
+      }
+    }
+
+    function hideLoading() {
+      const modal = document.getElementById('loadingModalOverlay');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.textContent = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => popup.style.display = 'none', 4500);
+    }
+
+    // ── DRAG & DROP ──
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+      dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false);
+    });
+    ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.add('highlight'), false));
+    ['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.remove('highlight'), false));
+    dropZone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]); });
+    fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFileSelect(e.target.files[0]); });
+
+    async function handleFileSelect(file) {
+      const errorEl = document.getElementById('formErrorMessage');
+      if (errorEl) errorEl.style.display = 'none';
+      if (file.size > 50 * 1024 * 1024) { showAlert('File exceeds 50MB limit.', 'error'); return; }
+      selectedFile = file;
+      document.getElementById('selectedFileName').textContent = file.name;
+      document.getElementById('selectedFileDisplay').style.display = 'flex';
+      pdfPageCount = 1;
+      if (file.type === 'application/pdf' && typeof pdfjsLib !== 'undefined') {
+        try {
+          const ab = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+          pdfPageCount = pdf.numPages;
+          showAlert(`PDF detected: ${pdfPageCount} page${pdfPageCount > 1 ? 's' : ''}`, 'success');
+        } catch(e) { pdfPageCount = 1; }
+      }
+      const pagesBadge = document.getElementById('detectedPagesInfo');
+      if (pagesBadge) {
+        pagesBadge.style.display = 'block';
+        pagesBadge.textContent = file.type === 'application/pdf'
+          ? `${pdfPageCount} page${pdfPageCount > 1 ? 's' : ''} detected`
+          : `1 page (image/document)`;
+      }
+      document.getElementById('pagesInput').value = pdfPageCount;
+      document.getElementById('submitBtn').disabled = false;
+      calculatePrice();
+    }
+
+    function updateCopies(val) {
+      copies = Math.min(99, Math.max(1, copies + val));
+      const el = document.getElementById('copiesVal');
+      el.value = copies;
+      calculatePrice();
+    }
+
+    function onCopiesInput(el) {
+      let v = parseInt(el.value);
+      if (!isNaN(v)) {
+        if (v > 99) {
+          v = 99;
+          el.value = 99;
+        }
+        if (v >= 1) {
+          copies = v;
+          calculatePrice();
+        }
+      }
+    }
+
+    function onCopiesBlur(el) {
+      let v = parseInt(el.value);
+      if (isNaN(v) || v < 1) v = 1;
+      if (v > 99) v = 99;
+      copies = v;
+      el.value = copies;
+      calculatePrice();
+    }
+
+    function toggleXeroxInfo() {
+      const box = document.getElementById('xeroxInfoBox');
+      if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleOrderType() {
+      const orderType = document.getElementById('orderTypeSelect').value;
+      const groupUpload = document.getElementById('groupUpload');
+      const groupPagesManual = document.getElementById('groupPagesManual');
+      const fileInput = document.getElementById('fileInput');
+
+      if (orderType === 'xerox') {
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) submitBtn.textContent = 'Add Xerox to Cart';
+        
+        groupUpload.style.display = 'none';
+        groupPagesManual.style.display = 'block';
+        document.getElementById('xeroxInfoBox').style.display = 'none'; // reset, user opens with i-btn
+        document.getElementById('xeroxInfoBtn').style.display = 'flex';
+        fileInput.value = '';
+        selectedFile = null;
+        document.getElementById('selectedFileDisplay').style.display = 'none';
+        document.getElementById('detectedPagesInfo').style.display = 'none';
+        
+        const pagesInput = document.getElementById('pagesManualInput');
+        pdfPageCount = parseInt(pagesInput.value) || 1;
+        document.getElementById('pagesInput').value = pdfPageCount;
+        document.getElementById('submitBtn').disabled = false;
+      } else {
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) submitBtn.textContent = 'Upload & Add to Cart';
+
+        groupUpload.style.display = 'block';
+        groupPagesManual.style.display = 'none';
+        document.getElementById('xeroxInfoBox').style.display = 'none';
+        document.getElementById('xeroxInfoBtn').style.display = 'none';
+        pdfPageCount = 1;
+        document.getElementById('pagesInput').value = pdfPageCount;
+        document.getElementById('submitBtn').disabled = true;
+      }
+      calculatePrice();
+    }
+
+    function onPagesManualInput(el) {
+      let v = parseInt(el.value);
+      if (isNaN(v) || v < 1) v = 1;
+      pdfPageCount = v;
+      document.getElementById('pagesInput').value = pdfPageCount;
+      calculatePrice();
+    }
+
+    function selectColorMode(mode) {
+      colorMode = mode;
+      document.getElementById('cardBw').classList.toggle('selected', mode === 'bw');
+      document.getElementById('cardColor').classList.toggle('selected', mode === 'color');
+      calculatePrice();
+    }
+
+    function selectSides(val) {
+      sides = val;
+      document.getElementById('cardSingle').classList.toggle('selected', val === 'single');
+      document.getElementById('cardDouble').classList.toggle('selected', val === 'double');
+      calculatePrice();
+    }
+
+    function calculatePrice() {
+      const pages = pdfPageCount;
+      if (pages < 1) {
+        document.getElementById('estimatedTotal').textContent = '0';
+        document.getElementById('priceBreakdown').textContent = '-';
+        return;
+      }
+      const singleRate = colorMode === 'color' ? livePricing.colorSingleRate : livePricing.bwSingleRate;
+      const doubleRate = colorMode === 'color' ? livePricing.colorDoubleRate : livePricing.bwDoubleRate;
+      const bindingOpt = document.getElementById('binding').value;
+      let pricePerCopy;
+      if (sides === 'single') {
+        pricePerCopy = pages * singleRate;
+      } else {
+        const sheets = Math.floor(pages / 2);
+        pricePerCopy = pages % 2 === 0
+          ? sheets * doubleRate
+          : (sheets * doubleRate) + singleRate;
+      }
+      if (bindingOpt === 'calico' || bindingOpt === 'spiral') {
+        pricePerCopy += 30;
+      }
+      const total = Math.round(pricePerCopy * copies);
+      document.getElementById('estimatedTotal').textContent = total;
+      const bd = document.getElementById('priceBreakdown');
+      if (bd) bd.textContent = getPriceBreakdown(pages, copies, colorMode, sides, bindingOpt);
+    }
+
+    function getPriceBreakdown(pages, copies, colorMode, sides, bindingOpt = 'none') {
+      const singleRate = colorMode === 'color' ? livePricing.colorSingleRate : livePricing.bwSingleRate;
+      const doubleRate = colorMode === 'color' ? livePricing.colorDoubleRate : livePricing.bwDoubleRate;
+      const sheets = Math.floor(pages / 2);
+      const bindingLabel = bindingOpt === 'calico' ? ', Calico Binding (+₹30/copy)' : bindingOpt === 'spiral' ? ', Spiral Binding (+₹30/copy)' : '';
+      
+      let pricePerCopy;
+      if (sides === 'single') {
+        pricePerCopy = pages * singleRate;
+      } else {
+        pricePerCopy = pages % 2 === 0
+          ? sheets * doubleRate
+          : (sheets * doubleRate) + singleRate;
+      }
+      if (bindingOpt === 'calico' || bindingOpt === 'spiral') {
+        pricePerCopy += 30;
+      }
+      const total = Math.round(pricePerCopy * copies);
+
+      if (sides === 'single') {
+        const formulaStr = bindingOpt !== 'none' ? `(${pages} x ₹${singleRate} + ₹30)` : `${pages} x ₹${singleRate}`;
+        return `${pages} pages x ₹${singleRate}${bindingLabel} x ${copies} cop${copies > 1 ? 'ies' : 'y'} = ₹${total}`;
+      } else {
+        if (pages % 2 === 0) {
+          return `${pages}p / 2 = ${sheets} sheets x ₹${doubleRate}/sheet${bindingLabel} x ${copies} = ₹${total}`;
+        } else {
+          return `${pages}p (odd): ${sheets} sheets x ₹${doubleRate} + 1 x ₹${singleRate}${bindingLabel}, x ${copies} = ₹${total}`;
+        }
+      }
+    }
+
+    // ── LOAD ORDERS ──
+    async function loadMyOrders() {
+      try {
+        const res = await fetch(`${API_BASE}/orders/mine`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const activeQueue = document.getElementById('ordersQueue');
+        const completedQueue = document.getElementById('completedOrdersQueue');
+
+        if (res.ok && data.success) {
+          // Active orders: paid and NOT collected (waiting, printing, ready)
+          const activeOrders = data.orders.filter(o => o.paymentStatus === 'paid' && o.status !== 'collected');
+          
+          // Completed orders: status === 'collected' strictly
+          const completedOrders = data.orders.filter(o => o.status === 'collected');
+
+          // Render Active Queue (Right side of New Order tab)
+          if (activeQueue) {
+            if (activeOrders.length === 0) {
+              activeQueue.innerHTML = '<div class="empty-state">No active orders</div>';
+            } else {
+              activeQueue.innerHTML = '';
+              activeOrders.forEach(order => renderOrderCard(activeQueue, order));
+            }
+          }
+
+          // Render Completed Queue (My Orders tab)
+          if (completedQueue) {
+            if (completedOrders.length === 0) {
+              completedQueue.innerHTML = '<div class="empty-state">No completed orders history</div>';
+            } else {
+              completedQueue.innerHTML = '';
+              completedOrders.forEach(order => renderCompletedOrderCard(completedQueue, order));
+            }
+          }
+        } else {
+          if (activeQueue) activeQueue.innerHTML = '<div class="empty-state">Could not load orders</div>';
+          if (completedQueue) completedQueue.innerHTML = '<div class="empty-state">Could not load orders</div>';
+        }
+      } catch(e) {
+        const activeQueue = document.getElementById('ordersQueue');
+        if (activeQueue) activeQueue.innerHTML = '<div class="empty-state">Error loading orders</div>';
+      }
+    }
+
+    function renderOrderCard(container, order) {
+      const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+      });
+      const tokenPart = order.paymentStatus === 'paid' ? `Token <span class="order-token">${order.tokenNumber}</span> · ` : '';
+      const amt = order.amount % 1 === 0 ? order.amount : order.amount.toFixed(2);
+      let barcodeBtnHtml = '';
+      if (order.status === 'ready') {
+        barcodeBtnHtml = `<div style="margin-top:0.3rem;"><button type="button" class="btn-barcode" onclick="showBarcodeModal('${order._id}', '${order.tokenNumber}')">Show Barcode to Collect</button></div>`;
+      }
+      const card = document.createElement('div');
+      card.className = 'order-card';
+      card.innerHTML = `
+        <div class="order-details">
+          <div class="order-line1">${tokenPart}${order.fileName}</div>
+          <div class="order-line2">${dateStr} · ${order.copies} cop${order.copies > 1 ? 'ies' : 'y'} · ₹${amt} · ${order.colorMode === 'bw' ? 'B&W' : 'Color'} · ${order.sides === 'single' ? 'Single' : 'Double'}-sided</div>
+          ${barcodeBtnHtml}
+        </div>
+        <span class="status-badge status-${order.status}">${order.status}</span>
+      `;
+      container.appendChild(card);
+    }
+
+    function renderCompletedOrderCard(container, order) {
+      const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+      });
+      const tokenPart = order.tokenNumber ? `Token <span class="order-token">${order.tokenNumber}</span> · ` : '';
+      const amt = order.amount % 1 === 0 ? order.amount : order.amount.toFixed(2);
+      const card = document.createElement('div');
+      card.className = 'order-card';
+      card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;';
+      card.innerHTML = `
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:700; font-size:0.88rem; color:#111; word-break:break-all;">${tokenPart}${order.fileName}</div>
+          <div style="font-size:0.76rem; color:var(--gray-400); margin-top:3px;">${order.copies} cop${order.copies > 1 ? 'ies' : 'y'} · ${order.colorMode === 'bw' ? 'B&W' : 'Color'} · ${order.sides === 'single' ? 'Single' : 'Double'}-sided</div>
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+          <div style="font-weight:800; font-size:0.95rem; color:#111;">₹${amt}</div>
+          <div style="font-size:0.75rem; color:var(--gray-400); margin-top:3px;">${dateStr}</div>
+        </div>
+      `;
+      container.appendChild(card);
+    }
+
+    // ── PAST ORDERS (last 3 months) ──
+    async function openPastOrders() {
+      document.getElementById('pastOrdersModal').style.display = 'flex';
+      const list = document.getElementById('pastOrdersList');
+      list.innerHTML = '<div class="empty-state">Loading...</div>';
+      try {
+        const res = await fetch(`${API_BASE}/orders/mine`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const now = Date.now();
+          const cutoff3m = now - (90 * 24 * 60 * 60 * 1000);
+          const past = data.orders.filter(o => new Date(o.createdAt).getTime() >= cutoff3m);
+          if (past.length === 0) {
+            list.innerHTML = '<div class="empty-state">No orders in the last 3 months</div>';
+            return;
+          }
+          list.innerHTML = '';
+          past.forEach(order => {
+            const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+            const tokenPart = order.tokenNumber ? `Token ${order.tokenNumber} · ` : '';
+            const amt = order.amount % 1 === 0 ? order.amount : order.amount.toFixed(2);
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--border);';
+            
+            const paymentFailed = order.paymentStatus !== 'paid';
+            const statusLabel = paymentFailed 
+              ? `<span class="status-badge status-pending" style="font-size:0.68rem;padding:2px 6px;">failed</span>`
+              : `<span class="status-badge status-${order.status}" style="font-size:0.68rem;padding:2px 6px;">${order.status}</span>`;
+
+            row.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px;">
+                <div style="font-size:0.88rem;font-weight:700;color:var(--navy);">${tokenPart}${order.fileName}</div>
+                ${statusLabel}
+              </div>
+              <div style="font-size:0.76rem;color:var(--gray-400);">${dateStr} · ${order.copies} cop${order.copies > 1 ? 'ies' : 'y'} · ₹${amt} · ${order.colorMode === 'bw' ? 'B&W' : 'Color'} · ${order.sides === 'single' ? 'Single' : 'Double'}-sided</div>
+            `;
+            list.appendChild(row);
+          });
+        } else {
+          list.innerHTML = '<div class="empty-state">Could not load orders</div>';
+        }
+      } catch(e) {
+        list.innerHTML = '<div class="empty-state">Error loading orders</div>';
+      }
+    }
+
+    function closePastOrders() {
+      document.getElementById('pastOrdersModal').style.display = 'none';
+    }
+
+    async function loadSettingsPastOrders() {
+      const list = document.getElementById('settingsPastOrdersList');
+      if (!list) return;
+      list.innerHTML = '<div class="empty-state">Loading...</div>';
+      try {
+        const res = await fetch(`${API_BASE}/orders/mine`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const now = Date.now();
+          const cutoff3m = now - (90 * 24 * 60 * 60 * 1000);
+          const past = data.orders.filter(o => new Date(o.createdAt).getTime() >= cutoff3m);
+          if (past.length === 0) {
+            list.innerHTML = '<div class="empty-state">No orders in the last 3 months</div>';
+            return;
+          }
+          list.innerHTML = '';
+          past.forEach(order => {
+            const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+            const tokenPart = order.tokenNumber ? `Token ${order.tokenNumber} · ` : '';
+            const amt = order.amount % 1 === 0 ? order.amount : order.amount.toFixed(2);
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--border);';
+            
+            const paymentFailed = order.paymentStatus !== 'paid';
+            const statusLabel = paymentFailed 
+              ? `<span class="status-badge status-pending">failed</span>`
+              : `<span class="status-badge status-${order.status}">${order.status}</span>`;
+
+            row.innerHTML = `
+              <div style="font-size:0.88rem;font-weight:700;color:#111;margin-bottom:3px;">${tokenPart}${order.fileName}</div>
+              <div style="font-size:0.76rem;color:var(--gray-400);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span>${dateStr} · ${order.copies} cop${order.copies > 1 ? 'ies' : 'y'} · ₹${amt} · ${order.colorMode === 'bw' ? 'B&W' : 'Color'} · ${order.sides === 'single' ? 'Single' : 'Double'}-sided</span>
+                <span>&bull;</span>
+                ${statusLabel}
+              </div>
+            `;
+            list.appendChild(row);
+          });
+        } else {
+          list.innerHTML = '<div class="empty-state">Could not load orders</div>';
+        }
+      } catch(e) {
+        list.innerHTML = '<div class="empty-state">Error loading orders</div>';
+      }
+    }
+
+    // ── ACCORDION TOGGLE ──
+    function toggleAccordion(id) {
+      const body = document.getElementById('body-' + id);
+      const chevron = document.getElementById('chevron-' + id);
+      if (!body) return;
+      
+      const isOpen = body.style.display === 'block';
+      
+      // Close all other accordion items first
+      document.querySelectorAll('.accordion-body').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.chevron-icon').forEach(el => el.style.transform = 'rotate(0deg)');
+      
+      if (!isOpen) {
+        body.style.display = 'block';
+        if (chevron) chevron.style.transform = 'rotate(90deg)';
+        if (id === 'settingsOrders') {
+          loadSettingsPastOrders();
+        }
+      }
+    }
+
+    // ── CONTACT & ABOUT MODALS ──
+    function showSettingsContact() {
+      document.getElementById('contactModalOverlay').style.display = 'flex';
+    }
+    function closeContactModal() {
+      document.getElementById('contactModalOverlay').style.display = 'none';
+    }
+    function showSettingsAbout() {
+      document.getElementById('aboutModalOverlay').style.display = 'flex';
+    }
+    function closeAboutModal() {
+      document.getElementById('aboutModalOverlay').style.display = 'none';
+    }
+
+    // ── MODALS ──
+    function showSuccessModal(tokenNumber) {
+      document.getElementById('successTokenNum').textContent = tokenNumber;
+      document.getElementById('successModalOverlay').style.display = 'flex';
+      loadMyOrders();
+      showPanel('myorders');
+    }
+
+    function closeSuccessModal() {
+      document.getElementById('successModalOverlay').style.display = 'none';
+      selectedFile = null; copies = 1;
+      document.getElementById('copiesVal').value = '1';
+      document.getElementById('binding').value = 'none';
+      document.getElementById('selectedFileDisplay').style.display = 'none';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('specialNote').value = '';
+      document.getElementById('detectedPagesInfo').style.display = 'none';
+      selectColorMode('bw');
+      selectSides('single');
+      calculatePrice();
+      loadMyOrders();
+      showPanel('myorders');
+    }
+
+    function showBarcodeModal(orderId, tokenNumber) {
+      document.getElementById('barcodeImg').src = `${API_BASE}/orders/${orderId}/barcode`;
+      document.getElementById('barcodeTokenText').textContent = tokenNumber || '—';
+      document.getElementById('barcodeModalOverlay').style.display = 'flex';
+    }
+
+    function closeBarcodeModal() {
+      document.getElementById('barcodeModalOverlay').style.display = 'none';
+    }
+
+    let currentPendingOrderId = null;
+    let currentPendingAmount = 0;
+
+    function showMockPaymentModal(orderId, amount) {
+      currentPendingOrderId = orderId;
+      currentPendingAmount = amount;
+      document.getElementById('mockPayAmount').textContent = `₹${amount % 1 === 0 ? amount : amount.toFixed(2)}`;
+      document.getElementById('mockPaymentOverlay').style.display = 'flex';
+    }
+
+    function closeMockPaymentModal() {
+      document.getElementById('mockPaymentOverlay').style.display = 'none';
+    }
+
+    let payingCartIndex = null;
+
+    document.getElementById('mockPayBtn').addEventListener('click', async () => {
+      closeMockPaymentModal();
+      showAlert('Simulating payment...', 'success');
+      try {
+        const res = await fetch(`${API_BASE}/verify-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ orderId: currentPendingOrderId, razorpayPaymentId: 'mock_pay_' + Date.now(), isMock: true })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          if (payingCartIndex === 'selected' || payingCartIndex === 'all') {
+            cartList = cartList.filter(i => i.selected === false);
+            payingCartIndex = null;
+            renderCart();
+          } else if (payingCartIndex !== null && payingCartIndex >= 0 && cartList[payingCartIndex]) {
+            cartList.splice(payingCartIndex, 1);
+            payingCartIndex = null;
+            renderCart();
+          }
+          showAlert('Payment done. Token generated.', 'success');
+          showSuccessModal(data.tokenNumber);
+        } else {
+          showAlert(data.message || 'Payment verification failed.', 'error');
+        }
+      } catch(e) {
+        showAlert('Error verifying payment.', 'error');
+      }
+    });
+
+    // ── CART STATE & LOGIC ──
+    let cartList = [];
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function base64ToFile(dataUrl, fileName, mimeType) {
+      try {
+        const arr = dataUrl.split(',');
+        const mime = (arr[0].match(/:(.*?);/) || [])[1] || mimeType;
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], fileName, { type: mime });
+      } catch(e) {
+        return null;
+      }
+    }
+
+    async function saveCartToStorage() {
+      try {
+        const serializable = await Promise.all(cartList.map(async (item) => {
+          let b64 = item.base64Data;
+          if (!b64 && item.file) {
+            try { b64 = await fileToBase64(item.file); } catch(err) {}
+          }
+          return {
+            id: item.id,
+            fileName: item.fileName,
+            fileSize: item.fileSize,
+            fileType: item.fileType || (item.file ? item.file.type : 'application/pdf'),
+            copies: item.copies,
+            colorMode: item.colorMode,
+            sides: item.sides,
+            pageSize: item.pageSize,
+            binding: item.binding,
+            specialNote: item.specialNote,
+            pages: item.pages,
+            orderType: item.orderType || 'print',
+            selected: item.selected !== false,
+            base64Data: b64
+          };
+        }));
+
+        const cartStorageData = {
+          timestamp: Date.now(),
+          items: serializable
+        };
+
+        localStorage.setItem('studentCart_v1', JSON.stringify(cartStorageData));
+      } catch(e) {
+        console.error('Error saving cart:', e);
+      }
+    }
+
+    function loadCartFromStorage() {
+      try {
+        const raw = localStorage.getItem('studentCart_v1');
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        const now = Date.now();
+        const cutoff48h = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
+
+        if (now - data.timestamp > cutoff48h) {
+          localStorage.removeItem('studentCart_v1');
+          cartList = [];
+          return;
+        }
+
+        if (Array.isArray(data.items)) {
+          cartList = data.items.map(item => {
+            let fileObj = null;
+            if (item.base64Data) {
+              fileObj = base64ToFile(item.base64Data, item.fileName, item.fileType);
+            }
+            // Auto-repair: check if it's a Xerox order (either by orderType or by lacking base64 data and being named 'Physical Xerox')
+            const orderType = (item.orderType === 'xerox' || (!item.base64Data && item.fileName === 'Physical Xerox')) ? 'xerox' : 'print';
+            return {
+              ...item,
+              orderType,
+              file: fileObj
+            };
+          });
+          renderCart();
+        }
+      } catch(e) {
+        console.error('Error loading cart:', e);
+      }
+    }
+
+    function previewCartFile(idx) {
+      const item = cartList[idx];
+      if (!item || !item.file) {
+        showAlert('Document file preview unavailable.', 'error');
+        return;
+      }
+      const fileUrl = URL.createObjectURL(item.file);
+      window.open(fileUrl, '_blank');
+    }
+
+    function calcCartItemPrice(item) {
+      const singleRate = item.colorMode === 'color' ? livePricing.colorSingleRate : livePricing.bwSingleRate;
+      const doubleRate = item.colorMode === 'color' ? livePricing.colorDoubleRate : livePricing.bwDoubleRate;
+      let pricePerCopy;
+      if (item.sides === 'single') {
+        pricePerCopy = item.pages * singleRate;
+      } else {
+        const sheets = Math.floor(item.pages / 2);
+        pricePerCopy = item.pages % 2 === 0
+          ? sheets * doubleRate
+          : (sheets * doubleRate) + singleRate;
+      }
+      if (item.binding === 'calico' || item.binding === 'spiral') {
+        pricePerCopy += 30;
+      }
+      return Math.round(pricePerCopy * item.copies);
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cartItemsList');
+      const countEl = document.getElementById('cartItemCount');
+      const docsEl = document.getElementById('cartSummaryDocs');
+      const copiesEl = document.getElementById('cartSummaryCopies');
+      const grandTotalEl = document.getElementById('cartGrandTotal');
+      const checkoutBtn = document.getElementById('cartCheckoutBtn');
+      const badgeEl = document.getElementById('cartBadge');
+
+      if (!container) return;
+
+      const mBadgeEl = document.getElementById('mNavCartBadge');
+
+      if (badgeEl) {
+        if (cartList.length > 0) {
+          badgeEl.textContent = cartList.length;
+          badgeEl.style.display = 'inline-block';
+        } else {
+          badgeEl.style.display = 'none';
+        }
+      }
+
+      if (mBadgeEl) {
+        if (cartList.length > 0) {
+          mBadgeEl.textContent = cartList.length;
+          mBadgeEl.style.display = 'inline-block';
+        } else {
+          mBadgeEl.style.display = 'none';
+        }
+      }
+
+      if (countEl) countEl.textContent = cartList.length;
+      if (docsEl) docsEl.textContent = cartList.length;
+
+      if (cartList.length === 0) {
+        container.innerHTML = '<div class="empty-state">Your cart is empty. Add documents from the New Order tab.</div>';
+        if (copiesEl) copiesEl.textContent = '0';
+        if (grandTotalEl) grandTotalEl.textContent = '0';
+        if (checkoutBtn) checkoutBtn.disabled = true;
+        return;
+      }
+
+      let totalCopiesCount = 0;
+      let grandTotal = 0;
+      container.innerHTML = '';
+
+      cartList.forEach((item, index) => {
+        const itemPrice = calcCartItemPrice(item);
+        grandTotal += itemPrice;
+        totalCopiesCount += item.copies;
+
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#f8f9fc; border:1px solid var(--border); border-radius:12px; padding:1.25rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);';
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <input type="checkbox" ${item.selected !== false ? 'checked' : ''} onchange="toggleCartItemSelect(${index}, this.checked)" style="width:18px; height:18px; accent-color:var(--navy); cursor:pointer;" title="Select item for checkout">
+              <div>
+                <div style="font-weight:700; font-size:0.95rem; color:var(--navy); word-break:break-all; display:flex; align-items:center; gap:6px;">
+                  <span onclick="previewCartFile(${index})" style="cursor:${item.orderType==='xerox'?'default':'pointer'};" title="${item.orderType==='xerox'?'':'Click to preview file'}">${item.fileName}</span>
+                  ${item.orderType !== 'xerox' ? `<span onclick="previewCartFile(${index})" style="font-size:0.72rem; background:#e0e7ff; color:var(--navy); padding:2px 8px; border-radius:4px; font-weight:700; cursor:pointer;">View File</span>` : '<span style="font-size:0.72rem; background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:4px; font-weight:700;">Xerox</span>'}
+                </div>
+                <div style="font-size:0.78rem; color:var(--gray-400); margin-top:2px;">${item.pages} sheet${item.pages > 1 ? 's' : ''}</div>
+              </div>
+            </div>
+            <button type="button" onclick="removeCartItem(${index})" style="background:none; border:none; color:#dc2626; font-size:0.82rem; font-weight:700; cursor:pointer; padding:4px 8px; border-radius:6px;">Delete</button>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:0.75rem; background:white; padding:1rem; border-radius:8px; border:1px solid #e5e7eb;">
+            <div>
+              <label style="font-size:0.72rem; font-weight:700; color:var(--gray-600); display:block; margin-bottom:4px;">Copies</label>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" onclick="updateCartCopies(${index}, -1)" style="width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:#f3f4f6; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center;">−</button>
+                <span style="font-weight:700; font-size:0.9rem; min-width:20px; text-align:center;">${item.copies}</span>
+                <button type="button" onclick="updateCartCopies(${index}, 1)" style="width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:#f3f4f6; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center;">+</button>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:0.72rem; font-weight:700; color:var(--gray-600); display:block; margin-bottom:4px;">Color</label>
+              <select onchange="updateCartColor(${index}, this.value)" style="width:100%; padding:5px 8px; font-size:0.8rem; border-radius:6px; border:1px solid var(--border); background:white;">
+                <option value="bw" ${item.colorMode==='bw'?'selected':''}>B&W</option>
+                <option value="color" ${item.colorMode==='color'?'selected':''}>Color</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.72rem; font-weight:700; color:var(--gray-600); display:block; margin-bottom:4px;">Sides</label>
+              <select onchange="updateCartSides(${index}, this.value)" style="width:100%; padding:5px 8px; font-size:0.8rem; border-radius:6px; border:1px solid var(--border); background:white;">
+                <option value="single" ${item.sides==='single'?'selected':''}>Single-sided</option>
+                <option value="double" ${item.sides==='double'?'selected':''}>Double-sided</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.72rem; font-weight:700; color:var(--gray-600); display:block; margin-bottom:4px;">Binding</label>
+              <select onchange="updateCartBinding(${index}, this.value)" style="width:100%; padding:5px 8px; font-size:0.8rem; border-radius:6px; border:1px solid var(--border); background:white;">
+                <option value="none" ${item.binding==='none'?'selected':''}>None</option>
+                <option value="calico" ${item.binding==='calico'?'selected':''}>Calico (+₹30)</option>
+                <option value="spiral" ${item.binding==='spiral'?'selected':''}>Spiral (+₹30)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.85rem; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:0.78rem; color:var(--gray-600); font-style:italic;">${item.specialNote ? 'Note: ' + item.specialNote : 'No special note'}</div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="font-weight:800; font-size:1.05rem; color:var(--navy);">₹${itemPrice}</div>
+              <button type="button" onclick="paySingleCartItem(${index})" style="background:var(--navy); color:white; border:none; padding:7px 16px; border-radius:8px; font-weight:700; font-size:0.82rem; cursor:pointer; transition:all 0.2s;">Pay Now</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const selectedItems = cartList.filter(i => i.selected !== false);
+      let selectedCopies = 0;
+      let selectedTotal = 0;
+      cartList.forEach(item => {
+        if (item.selected !== false) {
+          selectedCopies += item.copies;
+          selectedTotal += calcCartItemPrice(item);
+        }
+      });
+
+      if (docsEl) docsEl.textContent = `${selectedItems.length} of ${cartList.length}`;
+      if (copiesEl) copiesEl.textContent = selectedCopies;
+      if (grandTotalEl) grandTotalEl.textContent = selectedTotal;
+      if (checkoutBtn) checkoutBtn.disabled = selectedItems.length === 0;
+    }
+
+    function toggleCartItemSelect(idx, isChecked) {
+      if (cartList[idx]) {
+        cartList[idx].selected = isChecked;
+        saveCartToStorage();
+        renderCart();
+      }
+    }
+
+    async function paySingleCartItem(index) {
+      const item = cartList[index];
+      if (!item) return;
+
+      showLoading(`Preparing payment for ${item.fileName}...`);
+      payingCartIndex = index;
+
+      try {
+        const formData = new FormData();
+        if (item.file) {
+          formData.append('file', item.file);
+        }
+        formData.append('copies', item.copies);
+        formData.append('colorMode', item.colorMode);
+        formData.append('sides', item.sides);
+        formData.append('pageSize', item.pageSize);
+        formData.append('binding', item.binding);
+        formData.append('specialNote', item.specialNote);
+        formData.append('pages', item.pages);
+        formData.append('pageCount', item.pages);
+        const finalOrderType = (item.orderType === 'xerox' || (!item.file && item.fileName === 'Physical Xerox')) ? 'xerox' : 'print';
+        formData.append('orderType', finalOrderType);
+
+        const uploadRes = await fetch(`${API_BASE}/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok || !uploadData.success) {
+          hideLoading();
+          showAlert(uploadData.message || 'File upload failed.', 'error');
+          return;
+        }
+
+        const orderId = uploadData.orderId;
+        const itemAmount = uploadData.amount;
+
+        const payRes = await fetch(`${API_BASE}/create-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ orderId })
+        });
+        const payData = await payRes.json();
+        if (!payRes.ok || !payData.success) {
+          hideLoading();
+          showAlert('Failed to initialize payment gateway.', 'error');
+          return;
+        }
+
+        hideLoading();
+        if (payData.isMock || payData.key === 'YOUR_RAZORPAY_KEY_ID') {
+          showMockPaymentModal(orderId, itemAmount);
+        } else {
+          const options = {
+            key: payData.key,
+            amount: Math.round(itemAmount * 100),
+            currency: 'INR',
+            name: 'Printsta - SECE',
+            description: item.fileName,
+            order_id: payData.razorpayOrderId,
+            handler: async function(response) {
+              showLoading('Verifying transaction...');
+              try {
+                const verifyRes = await fetch(`${API_BASE}/verify-payment`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({
+                    orderId, razorpayOrderId: response.razorpay_order_id,
+                    razorpayPaymentId: response.razorpay_payment_id,
+                    razorpaySignature: response.razorpay_signature, isMock: false
+                  })
+                });
+                const verifyData = await verifyRes.json();
+                hideLoading();
+                if (verifyRes.ok && verifyData.success) {
+                  if (payingCartIndex !== null && payingCartIndex >= 0 && cartList[payingCartIndex]) {
+                    cartList.splice(payingCartIndex, 1);
+                    payingCartIndex = null;
+                    saveCartToStorage();
+                    renderCart();
+                  }
+                  showAlert('Payment successful. Token generated.', 'success');
+                  showSuccessModal(verifyData.tokenNumber);
+                } else {
+                  showAlert('Payment verification failed.', 'error');
+                }
+              } catch(e) {
+                hideLoading();
+                showAlert('Network error verifying payment.', 'error');
+              }
+            },
+            prefill: { name: studentName, email: localStorage.getItem('studentEmail') || '' },
+            theme: { color: '#1a2a4a' }
+          };
+          const rzp1 = new Razorpay(options);
+          rzp1.on('payment.failed', r => { hideLoading(); showAlert('Payment failed: ' + r.error.description, 'error'); });
+          rzp1.open();
+        }
+      } catch(e) {
+        hideLoading();
+        showAlert('Could not connect to server for payment.', 'error');
+      }
+    }
+
+    function updateCartCopies(idx, delta) {
+      if (cartList[idx]) {
+        cartList[idx].copies = Math.min(99, Math.max(1, cartList[idx].copies + delta));
+        saveCartToStorage();
+        renderCart();
+      }
+    }
+    function updateCartColor(idx, val) {
+      if (cartList[idx]) {
+        cartList[idx].colorMode = val;
+        saveCartToStorage();
+        renderCart();
+      }
+    }
+    function updateCartSides(idx, val) {
+      if (cartList[idx]) {
+        cartList[idx].sides = val;
+        saveCartToStorage();
+        renderCart();
+      }
+    }
+    function updateCartBinding(idx, val) {
+      if (cartList[idx]) {
+        cartList[idx].binding = val;
+        saveCartToStorage();
+        renderCart();
+      }
+    }
+    function removeCartItem(idx) {
+      if (cartList[idx]) {
+        cartList.splice(idx, 1);
+        saveCartToStorage();
+        renderCart();
+        showAlert('Item removed from cart.', 'success');
+      }
+    }
+
+    async function checkoutCart() {
+      const selectedItems = cartList.filter(i => i.selected !== false);
+      if (selectedItems.length === 0) {
+        showAlert('Please select at least one document item to pay.', 'error');
+        return;
+      }
+
+      // Check for mixed types
+      const selectedPrint = selectedItems.filter(i => (i.orderType || 'print') === 'print');
+      const selectedXerox = selectedItems.filter(i => i.orderType === 'xerox');
+      if (selectedPrint.length > 0 && selectedXerox.length > 0) {
+        showAlert('Your selected items contain both Print and Xerox orders. Please check them out separately.', 'error');
+        return;
+      }
+
+      showLoading('Processing selected cart documents...');
+      payingCartIndex = 'selected';
+
+      try {
+        let totalCartAmount = 0;
+        let lastOrderId = null;
+
+        for (let item of selectedItems) {
+          const formData = new FormData();
+          if (item.file) {
+            formData.append('file', item.file);
+          }
+          formData.append('copies', item.copies);
+          formData.append('colorMode', item.colorMode);
+          formData.append('sides', item.sides);
+          formData.append('pageSize', item.pageSize);
+          formData.append('binding', item.binding);
+          formData.append('specialNote', item.specialNote);
+          formData.append('pages', item.pages);
+          formData.append('pageCount', item.pages);
+          const finalOrderType = (item.orderType === 'xerox' || (!item.file && item.fileName === 'Physical Xerox')) ? 'xerox' : 'print';
+          formData.append('orderType', finalOrderType);
+
+          const uploadRes = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+          const uploadData = await uploadRes.json();
+          if (!uploadRes.ok || !uploadData.success) {
+            hideLoading();
+            showAlert(`Upload failed for ${item.fileName}: ${uploadData.message}`, 'error');
+            return;
+          }
+          lastOrderId = uploadData.orderId;
+          totalCartAmount += uploadData.amount;
+        }
+
+        const payRes = await fetch(`${API_BASE}/create-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ orderId: lastOrderId })
+        });
+        const payData = await payRes.json();
+        if (!payRes.ok || !payData.success) {
+          hideLoading();
+          showAlert('Failed to initialize payment gateway.', 'error');
+          return;
+        }
+
+        hideLoading();
+        if (payData.isMock || payData.key === 'YOUR_RAZORPAY_KEY_ID') {
+          showMockPaymentModal(lastOrderId, totalCartAmount);
+        } else {
+          const options = {
+            key: payData.key,
+            amount: Math.round(totalCartAmount * 100),
+            currency: 'INR',
+            name: 'Printsta - SECE',
+            description: `Checkout (${selectedItems.length} documents)`,
+            order_id: payData.razorpayOrderId,
+            handler: async function(response) {
+              showLoading('Verifying transaction...');
+              try {
+                const verifyRes = await fetch(`${API_BASE}/verify-payment`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({
+                    orderId: lastOrderId, razorpayOrderId: response.razorpay_order_id,
+                    razorpayPaymentId: response.razorpay_payment_id,
+                    razorpaySignature: response.razorpay_signature, isMock: false
+                  })
+                });
+                const verifyData = await verifyRes.json();
+                hideLoading();
+                if (verifyRes.ok && verifyData.success) {
+                  cartList = cartList.filter(i => i.selected === false);
+                  saveCartToStorage();
+                  renderCart();
+                  showAlert('Payment successful. Token generated.', 'success');
+                  showSuccessModal(verifyData.tokenNumber);
+                } else {
+                  showAlert('Payment verification failed.', 'error');
+                }
+              } catch(e) {
+                hideLoading();
+                showAlert('Network error verifying payment.', 'error');
+              }
+            },
+            prefill: { name: studentName, email: localStorage.getItem('studentEmail') || '' },
+            theme: { color: '#1a2a4a' }
+          };
+          const rzp1 = new Razorpay(options);
+          rzp1.on('payment.failed', r => { hideLoading(); showAlert('Payment failed: ' + r.error.description, 'error'); });
+          rzp1.open();
+        }
+      } catch(e) {
+        hideLoading();
+        showAlert('Could not connect to server for cart checkout.', 'error');
+      }
+    }
+
+    // ── FORM SUBMIT ──
+    document.getElementById('printOrderForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const errorEl = document.getElementById('formErrorMessage');
+      if (errorEl) errorEl.style.display = 'none';
+
+      function triggerValidationError(msg) {
+        if (errorEl) {
+          errorEl.textContent = msg;
+          errorEl.style.display = 'block';
+        }
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+          submitBtn.classList.add('shake-animation');
+          setTimeout(() => {
+            submitBtn.classList.remove('shake-animation');
+          }, 500);
+        }
+      }
+
+      const orderTypeVal = document.getElementById('orderTypeSelect').value;
+      const isXerox = orderTypeVal === 'xerox';
+
+      if (!isXerox && !selectedFile) {
+        const dropZoneEl = document.getElementById('dropZone');
+        if (dropZoneEl) {
+          dropZoneEl.style.borderColor = '#dc2626';
+          dropZoneEl.style.background = '#fef2f2';
+          dropZoneEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            dropZoneEl.style.borderColor = '';
+            dropZoneEl.style.background = '';
+          }, 2500);
+        }
+        triggerValidationError('Please upload a document file before adding to cart.');
+        return;
+      }
+
+      const copiesEl = document.getElementById('copiesVal');
+      const numCopies = parseInt(copiesEl ? copiesEl.value : copies, 10);
+      if (isNaN(numCopies) || numCopies < 1) {
+        if (copiesEl) copiesEl.focus();
+        triggerValidationError('Please enter a valid number of copies (minimum 1).');
+        return;
+      }
+      copies = numCopies;
+
+      const noteEl = document.getElementById('specialNote');
+      const noteVal = noteEl ? noteEl.value.trim() : '';
+      if (noteVal.length > 60) {
+        if (noteEl) noteEl.focus();
+        triggerValidationError('Special instructions cannot exceed 60 characters.');
+        return;
+      }
+
+      // Check if trying to mix Print and Xerox in the cart
+      const hasPrint = cartList.some(item => (item.orderType || 'print') === 'print');
+      const hasXerox = cartList.some(item => item.orderType === 'xerox');
+
+      if (isXerox && hasPrint) {
+        triggerValidationError('Your cart already contains Print items. Please checkout or clear your cart first.');
+        return;
+      }
+      if (!isXerox && hasXerox) {
+        triggerValidationError('Your cart already contains Xerox items. Please checkout or clear your cart first.');
+        return;
+      }
+
+      const cartItem = {
+        id: 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        file: isXerox ? null : selectedFile,
+        fileName: isXerox ? 'Physical Xerox' : selectedFile.name,
+        fileSize: isXerox ? 0 : selectedFile.size,
+        copies: copies,
+        colorMode: colorMode,
+        sides: sides,
+        pageSize: document.getElementById('pageSize').value,
+        binding: document.getElementById('binding').value,
+        specialNote: noteVal,
+        pages: pdfPageCount,
+        orderType: orderTypeVal,
+        selected: true
+      };
+
+      cartList.push(cartItem);
+      await saveCartToStorage();
+
+      // Reset form controls
+      selectedFile = null; copies = 1;
+      document.getElementById('copiesVal').value = '1';
+      document.getElementById('binding').value = 'none';
+      document.getElementById('selectedFileDisplay').style.display = 'none';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('specialNote').value = '';
+      document.getElementById('detectedPagesInfo').style.display = 'none';
+      document.getElementById('orderTypeSelect').value = 'print';
+      document.getElementById('pagesManualInput').value = '1';
+      toggleOrderType();
+      selectColorMode('bw');
+      selectSides('single');
+      calculatePrice();
+
+      showPanel('cart');
+    });
+
+    // ── WEB PUSH ──
+    const VAPID_PUBLIC_KEY = "BHYmKhXsevezzhmJchQNWsspQYnE2PMeOOF6hp-y42ODp5b4nS6DHFWQFIgGsCY7Kk1bLf5H0YLb3uBLFWuSkWw";
+    function urlBase64ToUint8Array(b64) {
+      const padding = '='.repeat((4 - b64.length % 4) % 4);
+      const base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = window.atob(base64);
+      const out = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+      return out;
+    }
+    async function registerWebPushNotifications() {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') return;
+          let sub = await reg.pushManager.getSubscription();
+          if (!sub) {
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+          }
+          await fetch(`${API_BASE}/notifications/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('studentToken') },
+            body: JSON.stringify({ subscription: sub })
+          });
+        } catch(e) { console.error('Web Push error:', e); }
+      }
+    }
+
+    // ── PROFILE PICTURE OPTIONS AND ACTIONS ──
+    function showProfilePicOptions() {
+      const emailEl = document.getElementById('profileEmail');
+      const email = (emailEl && emailEl.textContent !== '—') ? emailEl.textContent : 'default';
+      const prefKey = `profile_pic_${email.replace(/@/g, '_').replace(/\./g, '_')}`;
+      const savedPic = localStorage.getItem(prefKey);
+      
+      const removeBtn = document.getElementById('btnRemoveProfilePic');
+      if (savedPic) {
+        if (removeBtn) removeBtn.style.display = 'block';
+      } else {
+        if (removeBtn) removeBtn.style.display = 'none';
+      }
+      
+      const modal = document.getElementById('profilePicModal');
+      if (modal) {
+        modal.classList.add('active');
+      }
+    }
+
+    function closeProfilePicModal() {
+      const modal = document.getElementById('profilePicModal');
+      if (modal) {
+        modal.classList.remove('active');
+      }
+    }
+
+    function triggerProfilePicUpload() {
+      closeProfilePicModal();
+      document.getElementById('profilePicFileInput').click();
+    }
+
+    function removeProfilePic() {
+      closeProfilePicModal();
+      const emailEl = document.getElementById('profileEmail');
+      const email = (emailEl && emailEl.textContent !== '—') ? emailEl.textContent : 'default';
+      const prefKey = `profile_pic_${email.replace(/@/g, '_').replace(/\./g, '_')}`;
+      
+      localStorage.removeItem(prefKey);
+      displayProfilePic(null);
+      
+      const fileInput = document.getElementById('profilePicFileInput');
+      if (fileInput) fileInput.value = '';
+      
+      showAlert('Profile picture removed successfully.', 'success');
+    }
+
+    // ── PWA INSTALLATION PROMPT ──
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const banner = document.getElementById('pwaInstallBanner');
+      if (banner) banner.style.display = 'flex';
+    });
+
+    async function triggerPwaInstall() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === 'accepted') {
+          const banner = document.getElementById('pwaInstallBanner');
+          if (banner) banner.style.display = 'none';
+        }
+        deferredInstallPrompt = null;
+      } else {
+        // Fallback info for iOS Safari or standalone desktop
+        showAlert('To install on iPhone/iPad: Tap Share ➔ "Add to Home Screen"', 'success');
+      }
+    }
+
+    window.addEventListener('appinstalled', () => {
+      const banner = document.getElementById('pwaInstallBanner');
+      if (banner) banner.style.display = 'none';
+      deferredInstallPrompt = null;
+      showAlert('Printsta App installed successfully! 🎉', 'success');
+    });
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+          .catch(err => console.warn('[PWA] Service Worker failed:', err));
+      });
+    }
+
+    // ── INIT ──
+    loadCartFromStorage();
+    loadMyOrders();
+    setInterval(loadMyOrders, 10000);
+    registerWebPushNotifications();
+  </script>
+
+  <!-- Profile Picture Options Modal -->
+  <div id="profilePicModal" class="profile-pic-modal" onclick="closeProfilePicModal()">
+    <div class="profile-pic-modal-content" onclick="event.stopPropagation()">
+      <div style="padding: 1.5rem 1rem; border-bottom: 1px solid var(--border); text-align: center;">
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--navy);">Profile Photo</h3>
+        <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--gray-600);">Change or remove your profile picture</p>
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        <button class="profile-pic-modal-btn" onclick="triggerProfilePicUpload()" style="color: var(--navy); border-bottom: 1px solid var(--border);">Upload Photo</button>
+        <button id="btnRemoveProfilePic" class="profile-pic-modal-btn" onclick="removeProfilePic()" style="color: #ef4444; border-bottom: 1px solid var(--border);">Remove Current Photo</button>
+        <button class="profile-pic-modal-btn" onclick="closeProfilePicModal()" style="color: var(--gray-600); font-weight: 600;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-btn active" id="mNavDashboard" onclick="showPanel('dashboard')">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      <span>New Order</span>
+    </button>
+    <button class="mobile-nav-btn" id="mNavCart" onclick="showPanel('cart')">
+      <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        <span id="mNavCartBadge" class="mobile-nav-badge" style="display:none;">0</span>
+      </div>
+      <span>My Cart</span>
+    </button>
+    <button class="mobile-nav-btn" id="mNavMyorders" onclick="showPanel('myorders')">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      <span>My Orders</span>
+    </button>
+    <button class="mobile-nav-btn" id="mNavSettings" onclick="showPanel('settings')">
+      <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+</body>
+</html>

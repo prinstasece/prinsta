@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Printsta — Printing...</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0f172a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex; flex-direction: column;
+      height: 100vh; color: white; overflow: hidden;
+    }
+
+    /* ── Slim status bar on top ── */
+    #statusBar {
+      background: #1e293b;
+      border-bottom: 2px solid #334155;
+      padding: 8px 16px;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0; font-size: 0.82rem;
+    }
+    .token-pill {
+      background: linear-gradient(135deg, #f5a623, #e8961e);
+      color: #1a1a1a; font-weight: 900; font-size: 0.88rem;
+      padding: 3px 12px; border-radius: 100px;
+    }
+    .chip {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid #334155; border-radius: 6px;
+      padding: 3px 10px;
+    }
+    .chip .label { color: #64748b; }
+    .chip .val   { color: #f1f5f9; font-weight: 700; }
+    .spacer { flex: 1; }
+    .btn {
+      padding: 5px 14px; border-radius: 7px; border: none;
+      font-weight: 700; font-size: 0.78rem; cursor: pointer;
+    }
+    .btn-ready  { background: #16a34a; color: white; }
+    .btn-reopen { background: #2563eb; color: white; }
+    .btn-cancel { background: #374151; color: #d1d5db; }
+
+    /* ── Loading spinner overlay ── */
+    #overlay {
+      position: absolute; top: 40px; left: 0; right: 0; bottom: 0;
+      background: #0f172a;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; z-index: 10;
+    }
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top-color: #f5a623;
+      border-radius: 50%; width: 40px; height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #overlayMsg { color: #94a3b8; font-size: 0.88rem; }
+
+    /* ── PDF fills the rest ── */
+    #pdfEmbed {
+      flex: 1; width: 100%; border: none; display: block;
+    }
+
+    @media print {
+      #statusBar, #overlay { display: none !important; }
+      #pdfEmbed { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; }
+      body { background: white; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="statusBar">
+    <div class="token-pill" id="tokenPill">—</div>
+    <div class="chip"><span class="label">Copies:</span><span class="val" id="chipCopies">—</span></div>
+    <div class="chip"><span class="label">Colour:</span><span class="val" id="chipColor">—</span></div>
+    <div class="chip"><span class="label">Sides:</span><span class="val" id="chipSides">—</span></div>
+    <div class="spacer"></div>
+    <button class="btn btn-reopen" onclick="openDialog()" style="margin-right:6px;">↺ Reopen Dialog</button>
+    <button class="btn btn-ready"  onclick="markReadyAndClose()" style="margin-right:6px;">✓ Mark Ready</button>
+    <button class="btn btn-cancel" onclick="window.close()">✕</button>
+  </div>
+
+  <div id="overlay">
+    <div class="spinner"></div>
+    <div id="overlayMsg">Preparing print-ready document...</div>
+  </div>
+
+  <embed id="pdfEmbed" type="application/pdf" src="about:blank">
+
+  <script>
+    const p          = new URLSearchParams(window.location.search);
+    const orderId    = p.get('orderId');
+    const copies     = parseInt(p.get('copies') || '1');
+    const color      = p.get('color')  || 'bw';
+    const sides      = p.get('sides')  || 'single';
+    const tokenNumber = p.get('tokenNumber') || '—';
+
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+    const token    = localStorage.getItem('staffToken') || p.get('token');
+
+    // Populate status bar
+    document.getElementById('tokenPill').textContent = `TOKEN ${tokenNumber}`;
+    document.getElementById('chipCopies').textContent = copies === 1
+      ? `1 (baked)`
+      : `${copies} (baked into PDF)`;
+    document.getElementById('chipColor').textContent = color === 'color'
+      ? '🎨 Colour'
+      : '⚫ B&W (converted)';
+    document.getElementById('chipSides').textContent = sides === 'single'
+      ? 'Single-sided'
+      : '⚠️ Double-sided (set in dialog)';
+
+    // Fetch the print-ready PDF as a blob (auth header required)
+    async function load() {
+      try {
+        document.getElementById('overlayMsg').textContent = 'Generating print-ready PDF on server...';
+        const resp = await fetch(`${API_BASE}/orders/${orderId}/print-ready`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+
+        document.getElementById('overlayMsg').textContent = 'Loading document...';
+        const blob   = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const embed = document.getElementById('pdfEmbed');
+        embed.src = blobUrl;
+
+        document.getElementById('overlayMsg').textContent = 'Opening print dialog...';
+
+        // Wait a moment for the embed to initialise, then fire print
+        setTimeout(() => {
+          document.getElementById('overlay').style.display = 'none';
+          window.print();
+        }, 1600);
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('overlayMsg').textContent =
+          `⚠️ Error: ${err.message} — Click "↺ Reopen Dialog" to retry.`;
+        document.querySelector('.spinner').style.display = 'none';
+      }
+    }
+
+    function openDialog() {
+      window.print();
+    }
+
+    load();
+
+    // After print dialog closes, mark as ready automatically
+    window.onafterprint = () => {
+      markReadyAndClose();
+    };
+
+    let saved = false;
+    async function markReadyAndClose() {
+      if (saved) return;
+      saved = true;
+      if (orderId && token) {
+        try {
+          await fetch(`${API_BASE}/orders/${orderId}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: 'ready' })
+          });
+        } catch (e) { console.error(e); }
+      }
+      window.close();
+    }
+  </script>
+</body>
+</html>

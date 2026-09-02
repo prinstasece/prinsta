@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - Printsta SECE</title>
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Shared Design System stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Dynamic Alert Notification Popup -->
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Header Section -->
+  <header class="header">
+    <img src="assets/sece-logo.png" alt="SECE Logo" class="sece-logo-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'60\' height=\'60\' viewBox=\'0 0 60 60\'><rect width=\'60\' height=\'60\' fill=\'%231a2a4a\' rx=\'10\'/><text x=\'50%\' y=\'55%\' font-family=\'sans-serif\' font-size=\'10\' fill=\'white\' text-anchor=\'middle\' font-weight=\'bold\'>SECE</text></svg>'">
+    <a href="index.html" class="wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+  </header>
+
+  <!-- Main Login Layout -->
+  <main class="form-container">
+    <h1 class="page-heading">Admin Login</h1>
+
+    <form id="adminLoginForm">
+      <!-- Username Input -->
+      <div class="form-group">
+        <label for="username">Username :</label>
+        <div class="input-wrapper">
+          <input type="text" id="username" placeholder="Enter username" required>
+          <button type="button" class="input-icon-btn" tabindex="-1">
+            <!-- User SVG Icon -->
+            <svg viewBox="0 0 24 24"><path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Password Input -->
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrapper">
+          <input type="password" id="password" placeholder="Enter password" required>
+          <button type="button" id="passwordToggleBtn" class="input-icon-btn" tabindex="-1" title="Toggle password visibility">
+            <!-- Lock SVG Icon -->
+            <svg viewBox="0 0 24 24"><path d="M18,8h-1V6c0-2.76-2.24-5-5-5S7,3.24,7,6v2H6C4.9,8,4,8.9,4,10v10c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2V10C20,8.9,19.1,8,18,8z M9,6c0-1.66,1.34-3,3-3s3,1.34,3,3v2H9V6z M12,17c-1.1,0-2-0.9-2-2s0.9-2,2-2s2,0.9,2,2S13.1,17,12,17z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Submit Login Button -->
+      <button type="submit" class="btn-primary" style="margin-top: 1rem; margin-bottom: 1rem;">Login</button>
+    </form>
+
+    <!-- Back to student login link -->
+    <a href="index.html" class="link-small-center">Back to student login</a>
+  </main>
+
+  <script>
+    // Helper to display alert popups
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.innerText = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => {
+        popup.style.display = 'none';
+      }, 4000);
+    }
+
+    // Toggle password visibility on lock button click
+    const passwordInput = document.getElementById('password');
+    const passwordToggleBtn = document.getElementById('passwordToggleBtn');
+
+    passwordToggleBtn.addEventListener('click', () => {
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordToggleBtn.style.backgroundColor = '#f5a623';
+      } else {
+        passwordInput.type = 'password';
+        passwordToggleBtn.style.backgroundColor = '#1a2a4a';
+      }
+    });
+
+    // Admin Login Form Submit Handling
+    const adminLoginForm = document.getElementById('adminLoginForm');
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+
+    adminLoginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById('username').value.trim();
+      const password = passwordInput.value;
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showAlert('Admin authentication successful!', 'success');
+          // Save the admin JWT token in localStorage
+          localStorage.setItem('adminToken', data.token);
+          // Redirect to operator dashboard
+          setTimeout(() => {
+            window.location.href = 'admin.html';
+          }, 1500);
+        } else {
+          showAlert(data.message || 'Invalid admin credentials.', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('Could not connect to the server. Make sure the backend is running!', 'error');
+      }
+    });
+  </script>
+
+  
+
+</body>
+</html>
+

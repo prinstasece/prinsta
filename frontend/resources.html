@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resource Management - Printsta Admin</title>
+  <meta name="description" content="Manage paper resources for the Printsta print shop.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    * { font-family: 'Plus Jakarta Sans', sans-serif !important; box-sizing: border-box; }
+    :root {
+      --navy: #1a2a4a; --navy-dark: #0f1a30; --gold: #f5a623;
+      --white: #ffffff; --off-white: #f8f9fc;
+      --gray-400: #9ba3b8; --gray-600: #5a6480; --border: #e2e6ef;
+    }
+    body { background: var(--off-white); color: #111; margin: 0; padding: 0; min-height: 100vh; overflow-y: scroll; display: block; }
+
+    /* ─── Sidebar ───────────────────────────────────── */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+      background: var(--navy-dark); color: #fff;
+      padding: 1.5rem 1rem; display: flex; flex-direction: column;
+      z-index: 100; transition: transform 0.3s;
+    }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; padding: 0 0.5rem; }
+    .sidebar-wordmark { font-size: 1.5rem; font-weight: 800; color: #fff; text-decoration: none; }
+    .sidebar-wordmark .sta { color: var(--gold); }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 0.5rem; flex-grow: 1; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px; padding: 0.75rem 1rem;
+      color: var(--gray-400); text-decoration: none; border-radius: 8px;
+      font-weight: 600; font-size: 0.95rem; transition: all 0.2s;
+    }
+    .sidebar-link:hover, .sidebar-link.active { color: #fff; background: rgba(255,255,255,0.08); }
+    .sidebar-link.active { border-left: 4px solid var(--gold); padding-left: calc(1rem - 4px); }
+    .sidebar-footer { margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-logout {
+      background: transparent; border: 1px solid var(--gold); color: var(--gold);
+      padding: 0.6rem 1rem; border-radius: 8px; font-weight: 700;
+      cursor: pointer; width: 100%; transition: all 0.2s; font-size: 0.9rem;
+    }
+    .sidebar-logout:hover { background: var(--gold); color: var(--navy-dark); }
+    
+    /* ─── Mobile Header ─────────────────────────────── */
+    .mobile-header {
+      display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px;
+      background: var(--navy); color: #fff; padding: 0 1rem;
+      align-items: center; justify-content: space-between; z-index: 90;
+    }
+    .hamburger-btn { background: none; border: none; color: #fff; font-size: 1.75rem; cursor: pointer; }
+    .sidebar-backdrop {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 95;
+    }
+    .main-content { margin-left: 240px; padding: 2rem; min-height: 100vh; box-sizing: border-box; }
+    @media (max-width: 992px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-backdrop.show { display: block; }
+      .mobile-header { display: flex; }
+      .main-content { margin-left: 0; padding-top: calc(60px + 1.5rem); padding-left: 1rem; padding-right: 1rem; }
+    }
+    .content-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    .content-header h1 { font-size: 1.75rem; font-weight: 800; color: #111; margin: 0; }
+
+    /* ─── Status Cards ─────────────────────────────── */
+    .res-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px,1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .res-card {
+      background: #fff; border: 1px solid var(--border); border-radius: 20px;
+      padding: 1.75rem 2rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04); position: relative; overflow: hidden; transition: box-shadow .2s;
+    }
+    .res-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+    .res-card-left { flex: 1; min-width: 130px; }
+    .res-card-right { flex: 1.8; min-width: 170px; display: flex; flex-direction: column; gap: 8px; }
+    .res-card-label { font-size: 0.71rem; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
+    .res-card-value { font-size: 2.6rem; font-weight: 900; color: #111; line-height: 1; letter-spacing: -1.5px; }
+    .res-card-unit  { font-size: 0.82rem; color: var(--gray-400); font-weight: 600; margin-top: 3px; }
+    .res-card-bar-wrap { height: 8px; background: #eef0f5; border-radius: 99px; overflow: hidden; }
+    .res-card-bar { height: 100%; border-radius: 99px; transition: width .9s cubic-bezier(.4,0,.2,1); width: 0%; }
+    .res-card-footer { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+    .res-card-meta { font-size: 0.75rem; color: var(--gray-400); font-weight: 600; }
+
+    /* ─── Status chip ──────────────────────────────── */
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 50px; font-size: 0.71rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+    .chip-good { background: #dcfce7; color: #15803d; }
+    .chip-warn { background: #fef3c7; color: #b45309; }
+    .chip-crit { background: #fee2e2; color: #b91c1c; }
+    
+    .status-badge-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 50px; font-size: 0.71rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+    .chip-good, .status-badge-chip.chip-good { background: #dcfce7; color: #15803d; }
+    .chip-warning, .status-badge-chip.chip-warning { background: #fef3c7; color: #b45309; }
+    .chip-critical, .status-badge-chip.chip-critical { background: #fee2e2; color: #b91c1c; }
+
+    /* ─── Alert bar ────────────────────────────────── */
+    .resource-alert-bar { display: none; padding: 12px 16px; border-radius: 10px; font-weight: 700; font-size: 0.88rem; margin-bottom: 1.5rem; align-items: center; gap: 8px; }
+    .resource-alert-bar.warning  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; display: flex; }
+    .resource-alert-bar.critical { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; display: flex; }
+
+    /* ─── Tabs ─────────────────────────────────────── */
+    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1.75rem; }
+    .tab-btn { background: none; border: none; cursor: pointer; padding: 0.75rem 1.25rem; font-size: 0.88rem; font-weight: 700; color: var(--gray-400); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; white-space: nowrap; }
+    .tab-btn.active { color: var(--navy-dark); border-bottom-color: var(--navy-dark); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ─── Panels (tab content cards) ──────────────── */
+    .panel { background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 1.75rem 2rem; box-shadow: 0 2px 12px rgba(0,0,0,0.03); margin-bottom: 1.5rem; box-sizing: border-box; }
+    .panel-title { font-size: 1.05rem; font-weight: 800; color: #111; margin: 0 0 1.25rem 0; padding-bottom: 0.85rem; border-bottom: 1px solid #f0f2f7; display: flex; justify-content: space-between; align-items: center; }
+
+    /* ─── Supply grid & forms ──────────────────────── */
+    .supply-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; }
+    .supply-grid > * { min-width: 0; }
+    @media (max-width: 768px) { .supply-grid { grid-template-columns: 1fr; } }
+    
+    .supply-form { display: flex; flex-direction: column; gap: 0.85rem; max-width: 500px; }
+    .supply-form label { font-size: 0.75rem; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.5px; }
+    .supply-form input, .supply-form select {
+      padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 0.93rem; outline: none; font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #fafbfd; transition: border-color .2s, box-shadow .2s; color: #111; width: 100%;
+    }
+    .supply-form input:focus, .supply-form select:focus { border-color: var(--navy-dark); background: #fff; box-shadow: 0 0 0 3px rgba(26,42,74,.08); }
+    .supply-form p.status-info { font-size: 0.85rem; color: var(--gray-600); margin: 0; line-height: 1.5; background: #f4f6fa; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); }
+    .btn-row { display: flex; gap: 0.6rem; margin-top: 0.25rem; }
+    .btn-primary {
+      flex: 1; padding: 11px 16px; border-radius: 10px; font-weight: 700; font-size: 0.88rem;
+      border: none; cursor: pointer; transition: all .2s; font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--navy-dark); color: #fff; box-shadow: 0 2px 8px rgba(15,26,48,.15);
+    }
+    .btn-primary:hover { background: var(--navy); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(15,26,48,.2); }
+    .btn-primary.green { background: #16a34a; }
+    .btn-primary.green:hover { background: #15803d; }
+    .btn-primary.slate { background: #475569; }
+    .btn-primary.slate:hover { background: #334155; }
+    .btn-primary.red { background: #ef4444; }
+    .btn-primary.red:hover { background: #dc2626; }
+
+    /* ─── Compact Action Buttons ─────────────────── */
+    .btn-action {
+      padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.8rem;
+      border: none; cursor: pointer; transition: all .2s; font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.1); flex: none;
+    }
+    .btn-action.green { background: #16a34a; }
+    .btn-action.green:hover { background: #15803d; }
+    .btn-action.red { background: #ef4444; }
+    .btn-action.red:hover { background: #dc2626; }
+
+    /* ─── History tables ───────────────────────────── */
+    .history-table-wrapper {
+      overflow-x: auto; border: 1px solid var(--border); border-radius: 10px;
+      width: 100%; background: #fff;
+    }
+    .history-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.78rem; text-align: left; }
+    .history-table th, .history-table td { padding: 10px 8px; border-bottom: 1px solid #f0f2f7; word-break: break-word; white-space: normal; vertical-align: top; }
+    .history-table th { background: #f8fafc; color: var(--gray-600); font-weight: 700; font-size: 0.70rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: #fafbff; }
+
+    /* ─── Request / delivery cards ─────────────────── */
+    .delivery-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 14px 18px; background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; transition: background .15s; }
+    .delivery-card:hover { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+    .delivery-title { font-weight: 700; color: #111; font-size: 0.92rem; }
+    .delivery-meta { font-size: 0.78rem; color: var(--gray-400); margin-top: 3px; }
+
+    /* ─── Alert Popups ─────────────────────────────── */
+    .alert-popup {
+      position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px;
+      color: #fff; font-weight: 600; font-size: 0.9rem; display: none; z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .alert-popup.success { background: #10b981; }
+    .alert-popup.error { background: #ef4444; }
+
+    /* ─── Info strip ────────────────────────────────── */
+    .info-strip { padding: 11px 16px; background: #f0f4f8; border-radius: 10px; font-size: 0.81rem; color: var(--gray-600); font-weight: 600; margin-top: 1.5rem; border-left: 4px solid #c8d3e0; }
+  </style>
+</head>
+<body>
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <a href="admin.html" class="sidebar-wordmark"><span class="prin">prin</span><span class="sta">sta</span></a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="admin.html" class="sidebar-link">Dashboard</a>
+      <a href="pricing.html" class="sidebar-link">Pricing</a>
+      <a href="earnings.html" class="sidebar-link">Earnings</a>
+      <a href="orders-list.html" class="sidebar-link">Orders</a>
+      <a href="students.html" class="sidebar-link">Students</a>
+      <a href="audit-log.html" class="sidebar-link">Activity Log</a>
+      <a href="resources.html" class="sidebar-link active">Resources</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-logout" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
+    <a href="admin.html" class="sidebar-wordmark" style="font-size:1.25rem;"><span class="prin">prin</span><span class="sta">sta</span></a>
+    <div style="width:28px;"></div>
+  </div>
+
+  <main class="main-content">
+    <header class="content-header">
+      <h1>Resource Management</h1>
+      <div id="lastRefresh" style="font-size:0.82rem;color:var(--gray-400);font-weight:600;">Loading...</div>
+    </header>
+
+    <div id="alertBarPaper" class="resource-alert-bar"></div>
+    <div id="alertBarToner" class="resource-alert-bar"></div>
+
+    <!-- Resource Status Cards Grid -->
+    <div class="res-cards-grid">
+      <!-- Paper Stock -->
+      <div id="paperCard" class="res-card good">
+        <div class="res-card-left">
+          <div class="res-card-label">Paper Stock</div>
+          <div class="res-card-value" id="paperWheelValue">—</div>
+          <div class="res-card-unit">sheets remaining</div>
+        </div>
+        <div class="res-card-right">
+          <div class="res-card-bar-wrap">
+            <div id="paperProgressBar" class="res-card-bar" style="background:#22c55e;"></div>
+          </div>
+          <div class="res-card-footer">
+            <span class="status-badge-chip chip-good" id="paperChip">Loading...</span>
+            <span class="res-card-meta" id="paperMeta">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toner Life -->
+      <div id="tonerCard" class="res-card good">
+        <div class="res-card-left">
+          <div class="res-card-label">Toner Life</div>
+          <div class="res-card-value" id="tonerValue">—</div>
+          <div class="res-card-unit">prints remaining</div>
+        </div>
+        <div class="res-card-right">
+          <div class="res-card-bar-wrap">
+            <div id="tonerProgressBar" class="res-card-bar" style="background:#22c55e;"></div>
+          </div>
+          <div class="res-card-footer">
+            <span class="status-badge-chip chip-good" id="tonerChip">Loading...</span>
+            <span class="res-card-meta" id="tonerMeta">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabBtnSupply" onclick="switchResTab('supply', this)">Supply Resources</button>
+      <button class="tab-btn" id="tabBtnRequests" onclick="switchResTab('requests', this)">Staff Requests <span id="requestsCount" style="background:#1a2a4a;color:white;border-radius:50%;font-size:0.7rem;padding:1px 5px;margin-left:4px;display:none;">0</span></button>
+      <button class="tab-btn" id="tabBtnPending" onclick="switchResTab('pending', this)">Pending <span id="pendingCount" style="background:#ef4444;color:white;border-radius:50%;font-size:0.7rem;padding:1px 5px;margin-left:4px;display:none;">0</span></button>
+      <button class="tab-btn" id="tabBtnHistory" onclick="switchResTab('history', this)">History</button>
+      <button class="tab-btn" id="tabBtnOverride" onclick="switchResTab('override', this)">Override</button>
+    </div>
+
+    <!-- Tab: Supply -->
+    <div class="tab-pane active" id="tabSupply">
+      <div class="supply-grid">
+        <!-- Paper Supply -->
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Supply Paper</div>
+          <div class="supply-form">
+            <label>Number of Sheets</label>
+            <input type="number" id="paperSheetsInput" placeholder="e.g. 500" min="1" max="10000">
+            <label>Note (optional)</label>
+            <input type="text" id="paperNoteInput" placeholder="e.g. A4 80gsm Bond Paper">
+            <div class="btn-row">
+              <button class="btn-primary" onclick="supplyPaper(false)">Send to Staff</button>
+              <button class="btn-primary slate" onclick="supplyPaper(true)">Add to Tray Directly</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toner -->
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Install / Refill Toner</div>
+          <div class="supply-form">
+            <label>Toner Brand</label>
+            <input type="text" id="tonerBrandInput" placeholder="e.g. HP, Epson" value="Generic">
+            <label>Serial Number (S/N)</label>
+            <input type="text" id="tonerSnInput" placeholder="e.g. CRG-054" value="N/A">
+            <label>Company Rated Capacity (pages)</label>
+            <input type="number" id="tonerCapacityInput" placeholder="e.g. 4000" min="1" max="50000" value="4000">
+            <label>Current Status</label>
+            <p class="status-info" id="tonerCurrentStatusInfo">Loading active toner details...</p>
+            <div class="btn-row">
+              <button class="btn-primary green" onclick="replaceToner()">Replace / Refill</button>
+              <button class="btn-primary slate" onclick="setActiveTonerCapacity()">Update Details</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="info-strip">After sending a paper supply, staff must confirm receipt. Toner replacements take effect immediately.</div>
+    </div>
+
+    <!-- Tab: Requests -->
+    <div class="tab-pane" id="tabRequests">
+      <div class="supply-grid">
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Staff Paper Requests</div>
+          <div id="requestsList" style="display:flex;flex-direction:column;gap:12px;">
+            <div style="text-align:center;padding:2rem;color:var(--gray-400);font-weight:600;">Loading requests...</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Requests Info</div>
+          <div class="supply-form">
+            <p class="status-info">
+              Staff members submit paper requests from their terminal when the printer paper tray runs low.
+              <br><br>
+              Review the requested sheet counts on the left and choose to either <strong>Approve</strong> or <strong>Reject</strong> the request.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Pending -->
+    <div class="tab-pane" id="tabPending">
+      <div class="supply-grid">
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Awaiting Confirmation</div>
+          <div id="pendingDeliveriesAdmin">
+            <div style="text-align:center;padding:3rem;color:var(--gray-400);font-weight:600;">No pending deliveries</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Pending Status Info</div>
+          <div class="supply-form">
+            <p class="status-info">
+              All paper supplies sent by admin (not directly loaded to tray) remain in <strong>Pending</strong> state until the staff confirms receipt.
+              <br><br>
+              Once staff counts the paper and confirms on their terminal, the active paper count will update.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: History -->
+    <div class="tab-pane" id="tabHistory">
+      <div class="supply-grid">
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Paper Supply History</div>
+          <div class="history-table-wrapper">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th style="width:18%;">Sheets</th>
+                  <th style="width:18%;">Supplied By</th>
+                  <th style="width:18%;">Confirmed By</th>
+                  <th style="width:26%;">Confirmed At</th>
+                  <th style="width:20%;">Note</th>
+                </tr>
+              </thead>
+              <tbody id="paperHistoryBody">
+                <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-400);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Toner Replacement History</div>
+          <div class="history-table-wrapper">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th style="width:16%;">Brand &amp; S/N</th>
+                  <th style="width:18%;">Installed</th>
+                  <th style="width:18%;">Replaced</th>
+                  <th style="width:10%;">By</th>
+                  <th style="width:14%;">Printed/Cap</th>
+                  <th style="width:12%;">Diff</th>
+                  <th style="width:12%;">Eff%</th>
+                </tr>
+              </thead>
+              <tbody id="tonerHistoryBody">
+                <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--gray-400);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Override -->
+    <div class="tab-pane" id="tabOverride">
+      <div class="supply-grid">
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Paper Stock Override</div>
+          <div class="supply-form">
+            <label>Set Paper Stock (sheets)</label>
+            <input type="number" id="overridePaperInput" placeholder="e.g. 250" min="0">
+            <p class="status-info">
+              Manually overwrite the current paper stock count. Use this to sync counts after counting the actual sheets in the tray.
+            </p>
+            <button class="btn-primary" onclick="overridePaper()">Set Paper Count</button>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:0;">
+          <div class="panel-title">Toner Life Override</div>
+          <div class="supply-form">
+            <label>Set Active Toner Pages Printed</label>
+            <input type="number" id="overrideTonerInput" placeholder="e.g. 1000" min="0">
+            <p class="status-info">
+              Manually adjust the total pages printed on the current active toner cartridge to calibrate the remaining capacity indicator.
+            </p>
+            <button class="btn-primary" onclick="overrideToner()">Set Pages Count</button>
+          </div>
+        </div>
+      </div>
+      <div class="info-strip" style="border-left-color: #ef4444;">⚠️ <strong>Admin Warning:</strong> Manually overriding stock levels bypasses all safety logs. Use only to synchronize counts after physical audits.</div>
+    </div>
+  </main>
+
+  <script>
+    function toggleSidebar() {
+      var s = document.getElementById('sidebar'), b = document.getElementById('sidebarBackdrop');
+      if (s && b) { s.classList.toggle('open'); b.classList.toggle('show'); }
+    }
+    var token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'admin-login.html';
+    var API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+    function logout() { localStorage.removeItem('adminToken'); window.location.href = 'admin-login.html'; }
+    function showAlert(msg, type) {
+      type = type || 'success';
+      var el = document.getElementById('alertPopup');
+      el.textContent = msg; el.className = 'alert-popup ' + type;
+      el.style.display = 'block'; setTimeout(function(){ el.style.display='none'; }, 4500);
+    }
+    
+    async function loadStatus() {
+      try {
+        var r = await fetch(API_BASE+'/resources/status', { headers:{'Authorization':'Bearer '+token} });
+        var data = await r.json();
+        if (!data.success) return;
+        
+        // 1. Paper Stock Status
+        var paper = data.paper, pending = data.pending||[];
+        var sheets = paper.sheets||0;
+        document.getElementById('paperWheelValue').textContent = sheets;
+        var pp = Math.min(100, Math.round((sheets/500)*100));
+        var pBar = document.getElementById('paperProgressBar');
+        if (pBar) {
+          pBar.style.width = pp + '%';
+          pBar.style.background = sheets <= 20 ? '#ef4444' : sheets <= 100 ? '#f59e0b' : '#22c55e';
+        }
+        var pc = document.getElementById('paperChip'), pa = document.getElementById('alertBarPaper');
+        var paperCard = document.getElementById('paperCard');
+        if (sheets <= 20) {
+          pc.className = 'status-badge-chip chip-good'; pc.className = 'status-badge-chip chip-critical'; pc.textContent = '⚠ Critical';
+          pa.className = 'resource-alert-bar critical';
+          pa.innerHTML = '<strong>CRITICAL:</strong>&nbsp;Only '+sheets+' sheets left! Restock immediately.';
+          pa.style.display = 'flex';
+          if (paperCard) { paperCard.className = 'res-card crit'; }
+        } else if (sheets <= 100) {
+          pc.className = 'status-badge-chip chip-good'; pc.className = 'status-badge-chip chip-warning'; pc.textContent = '↓ Low';
+          pa.className = 'resource-alert-bar warning';
+          pa.innerHTML = '<strong>WARNING:</strong>&nbsp;Paper low - '+sheets+' sheets remaining.';
+          pa.style.display = 'flex';
+          if (paperCard) { paperCard.className = 'res-card warn'; }
+        } else {
+          pc.className = 'status-badge-chip chip-good'; pc.textContent = '✓ Good';
+          pa.className = 'resource-alert-bar'; pa.style.display = 'none';
+          if (paperCard) { paperCard.className = 'res-card good'; }
+        }
+        var pLastDate = paper.lastSupplied ? new Date(paper.lastSupplied).toLocaleDateString('en-IN') : 'Never';
+        document.getElementById('paperMeta').textContent = 'Last supplied: '+pLastDate+(paper.lastSuppliedBy?' by '+paper.lastSuppliedBy:'');
+        
+        // 2. Toner Cartridge Status
+        var toner = data.toner;
+        if (toner) {
+          var cap = toner.capacity || 4000;
+          var printed = toner.pagesPrinted || 0;
+          var remaining = Math.max(0, cap - printed);
+          var tp = Math.max(0, Math.round((remaining / cap) * 100));
+          
+          document.getElementById('tonerValue').textContent = remaining;
+          var tBar = document.getElementById('tonerProgressBar');
+          if (tBar) {
+            tBar.style.width = tp + '%';
+            tBar.style.background = tp <= 10 ? '#ef4444' : tp <= 30 ? '#f59e0b' : '#22c55e';
+          }
+          
+          var tc = document.getElementById('tonerChip'), ta = document.getElementById('alertBarToner');
+          var tonerCard = document.getElementById('tonerCard');
+          if (tp <= 0) {
+            tc.className = 'status-badge-chip chip-critical'; tc.textContent = '⊘ Empty';
+            ta.className = 'resource-alert-bar critical';
+            ta.innerHTML = '<strong>CRITICAL:</strong>&nbsp;Toner is completely empty! Replace immediately.';
+            ta.style.display = 'flex';
+            if (tonerCard) { tonerCard.className = 'res-card crit'; }
+          } else if (tp <= 10) {
+            tc.className = 'status-badge-chip chip-warning'; tc.textContent = '↓ Low (' + tp + '%)';
+            ta.className = 'resource-alert-bar warning';
+            ta.innerHTML = '<strong>WARNING:</strong>&nbsp;Toner low - ' + tp + '% remaining (' + remaining + ' prints left).';
+            ta.style.display = 'flex';
+            if (tonerCard) { tonerCard.className = 'res-card warn'; }
+          } else {
+            tc.className = 'status-badge-chip chip-good'; tc.textContent = '✓ Good (' + tp + '%)';
+            ta.style.display = 'none';
+            if (tonerCard) { tonerCard.className = 'res-card good'; }
+          }
+          
+          var tBrand = toner.brand || 'Generic';
+          var tSn = toner.serialNumber || 'N/A';
+          var tDate = toner.installedAt ? new Date(toner.installedAt).toLocaleDateString('en-IN') : 'Unknown';
+          document.getElementById('tonerMeta').textContent = tBrand + ' (S/N: ' + tSn + ') • Installed: ' + tDate;
+          document.getElementById('tonerCurrentStatusInfo').textContent = 'Active Toner: ' + tBrand + ' (S/N: ' + tSn + ') — ' + printed + ' of ' + cap + ' pages printed (' + tp + '% remaining)';
+          
+          // Pre-fill inputs with active details if not edited yet
+          if (!document.getElementById('tonerBrandInput').dataset.loaded) {
+            document.getElementById('tonerBrandInput').value = tBrand;
+            document.getElementById('tonerBrandInput').dataset.loaded = 'true';
+          }
+          if (!document.getElementById('tonerSnInput').dataset.loaded) {
+            document.getElementById('tonerSnInput').value = tSn;
+            document.getElementById('tonerSnInput').dataset.loaded = 'true';
+          }
+          if (!document.getElementById('tonerCapacityInput').dataset.loaded) {
+            document.getElementById('tonerCapacityInput').value = cap;
+            document.getElementById('tonerCapacityInput').dataset.loaded = 'true';
+          }
+        }
+
+        var badge = document.getElementById('pendingCount');
+        if (pending.length > 0) { badge.style.display='inline-block'; badge.textContent=pending.length; }
+        else badge.style.display = 'none';
+        renderAdminPending(pending);
+        document.getElementById('lastRefresh').textContent = 'Updated: '+new Date().toLocaleTimeString('en-IN');
+        loadRequests();
+      } catch(e) { console.error('[Resources]', e); }
+    }
+    function renderAdminPending(pending) {
+      var cont = document.getElementById('pendingDeliveriesAdmin');
+      if (!pending||!pending.length) {
+        cont.innerHTML = '<div style="text-align:center;padding:3rem;color:#888;font-weight:600;">No pending deliveries — all confirmed by staff</div>';
+        return;
+      }
+      cont.innerHTML = pending.map(function(d) {
+        var date = new Date(d.suppliedAt).toLocaleString('en-IN');
+        var label = d.sheets + ' sheets of paper';
+        return '<div class="delivery-card"><div class="delivery-info"><div class="delivery-title">'+label+'</div><div class="delivery-meta">Sent by '+d.suppliedBy+' &bull; '+date+(d.note?' — '+d.note:'')+'</div></div><span class="status-badge-chip chip-warning">Awaiting Staff</span></div>';
+      }).join('');
+    }
+    async function loadHistory() {
+      try {
+        var r = await fetch(API_BASE+'/resources/history', { headers:{'Authorization':'Bearer '+token} });
+        var data = await r.json();
+        if (!data.success) return;
+        var pb = document.getElementById('paperHistoryBody');
+        pb.innerHTML = data.paperHistory&&data.paperHistory.length ? data.paperHistory.map(function(h){
+          return '<tr><td><strong>'+h.sheets+'</strong> sheets</td><td>'+(h.suppliedBy||'—')+'</td><td>'+(h.confirmedBy||'—')+'</td><td>'+(h.confirmedAt?new Date(h.confirmedAt).toLocaleString('en-IN'):'—')+'</td><td style="color:#888;">'+(h.note||'—')+'</td></tr>';
+        }).join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#888;">No records yet</td></tr>';
+        
+        loadTonerHistory();
+      } catch(e) { console.error(e); }
+    }
+    async function supplyPaper(direct) {
+      direct = direct || false;
+      var sheets = document.getElementById('paperSheetsInput').value;
+      var note = document.getElementById('paperNoteInput').value;
+      if (!sheets||parseInt(sheets)<=0) { showAlert('Enter valid sheet count.','error'); return; }
+      try {
+        var r = await fetch(API_BASE+'/resources/supply-paper',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({sheets:parseInt(sheets),note:note,direct:direct})});
+        var d = await r.json();
+        if (d.success) { showAlert(d.message); document.getElementById('paperSheetsInput').value=''; document.getElementById('paperNoteInput').value=''; loadStatus(); }
+        else showAlert(d.message||'Failed.','error');
+      } catch(e) { showAlert('Network error','error'); }
+    }
+    async function overridePaper() {
+      var v = document.getElementById('overridePaperInput').value;
+      if (v===''||parseInt(v)<0) { showAlert('Invalid value.','error'); return; }
+      if (!confirm('Override paper stock to '+v+' sheets?')) return;
+      try {
+        var r = await fetch(API_BASE+'/resources/paper/override',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({sheets:parseInt(v)})});
+        var d = await r.json();
+        if (d.success) { showAlert(d.message); loadStatus(); } else showAlert(d.message||'Error','error');
+      } catch(e) { showAlert('Network error','error'); }
+    }
+    
+    async function replaceToner() {
+      var capacity = document.getElementById('tonerCapacityInput').value;
+      var brand = document.getElementById('tonerBrandInput').value.trim();
+      var serialNumber = document.getElementById('tonerSnInput').value.trim();
+      if (!capacity || parseInt(capacity) <= 0) { showAlert('Enter a valid toner capacity.', 'error'); return; }
+      if (!confirm('Are you sure you want to Replace/Refill the Toner? The current toner will be archived with its printed page count.')) return;
+      try {
+        var r = await fetch(API_BASE + '/resources/replace-toner', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            capacity: parseInt(capacity),
+            brand: brand,
+            serialNumber: serialNumber
+          })
+        });
+        var data = await r.json();
+        if (data.success) {
+          showAlert(data.message);
+          // reset dataset indicators so they reload new active values on status refresh
+          delete document.getElementById('tonerBrandInput').dataset.loaded;
+          delete document.getElementById('tonerSnInput').dataset.loaded;
+          delete document.getElementById('tonerCapacityInput').dataset.loaded;
+          loadStatus();
+        } else {
+          showAlert(data.message || 'Failed to replace toner.', 'error');
+        }
+      } catch (err) {
+        showAlert('Network error', 'error');
+      }
+    }
+
+    async function setActiveTonerCapacity() {
+      var capacity = document.getElementById('tonerCapacityInput').value;
+      var brand = document.getElementById('tonerBrandInput').value.trim();
+      var serialNumber = document.getElementById('tonerSnInput').value.trim();
+      if (!capacity || parseInt(capacity) <= 0) { showAlert('Enter a valid toner capacity.', 'error'); return; }
+      if (!confirm('Update active toner details?')) return;
+      try {
+        var r = await fetch(API_BASE + '/resources/set-toner', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            capacity: parseInt(capacity),
+            brand: brand,
+            serialNumber: serialNumber
+          })
+        });
+        var data = await r.json();
+        if (data.success) {
+          showAlert(data.message);
+          // reset dataset indicators so they reload new active values on status refresh
+          delete document.getElementById('tonerBrandInput').dataset.loaded;
+          delete document.getElementById('tonerSnInput').dataset.loaded;
+          delete document.getElementById('tonerCapacityInput').dataset.loaded;
+          loadStatus();
+        } else {
+          showAlert(data.message || 'Failed to update details.', 'error');
+        }
+      } catch (err) {
+        showAlert('Network error', 'error');
+      }
+    }
+
+    async function overrideToner() {
+      var v = document.getElementById('overrideTonerInput').value;
+      if (v === '' || parseInt(v) < 0) { showAlert('Invalid value.', 'error'); return; }
+      if (!confirm('Override active toner pages printed to ' + v + ' pages?')) return;
+      try {
+        var r = await fetch(API_BASE + '/resources/toner/override', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ pagesPrinted: parseInt(v) })
+        });
+        var data = await r.json();
+        if (data.success) {
+          showAlert(data.message);
+          document.getElementById('overrideTonerInput').value = '';
+          loadStatus();
+        } else {
+          showAlert(data.message || 'Error', 'error');
+        }
+      } catch (e) {
+        showAlert('Network error', 'error');
+      }
+    }
+
+    async function loadTonerHistory() {
+      try {
+        var r = await fetch(API_BASE + '/resources/toner-history', { headers: { 'Authorization': 'Bearer ' + token } });
+        var data = await r.json();
+        if (!data.success) return;
+        var tb = document.getElementById('tonerHistoryBody');
+        tb.innerHTML = data.history && data.history.length ? data.history.map(function (h) {
+          var diff = h.pagesPrintedAtReplacement - h.capacity;
+          var diffColor = diff < 0 ? '#dc2626' : '#16a34a';
+          var diffSign = diff > 0 ? '+' : '';
+          var efficiency = ((h.pagesPrintedAtReplacement / h.capacity) * 100).toFixed(1) + '%';
+          var brandStr = (h.brand || 'Generic') + ' (' + (h.serialNumber || 'N/A') + ')';
+          return '<tr>' +
+            '<td>' + brandStr + '</td>' +
+            '<td>' + new Date(h.installedAt).toLocaleString('en-IN') + '</td>' +
+            '<td>' + new Date(h.replacedAt).toLocaleString('en-IN') + '</td>' +
+            '<td>' + (h.replacedBy || 'staff') + '</td>' +
+            '<td><strong>' + h.pagesPrintedAtReplacement + '</strong> / ' + h.capacity + ' pages</td>' +
+            '<td style="color:' + diffColor + ';font-weight:700;">' + diffSign + diff + ' pages</td>' +
+            '<td><strong>' + efficiency + '</strong></td>' +
+            '</tr>';
+        }).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#888;">No replacement records yet</td></tr>';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    function switchResTab(id, btn) {
+      document.querySelectorAll('.tab-pane').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.getElementById('tab'+id.charAt(0).toUpperCase()+id.slice(1)).classList.add('active');
+      btn.classList.add('active');
+      if (id==='history') loadHistory();
+      if (id==='pending') loadStatus();
+      if (id==='requests') loadRequests();
+    }
+
+    async function loadRequests() {
+      try {
+        var r = await fetch(API_BASE+'/resources/requests', { headers:{'Authorization':'Bearer '+token} });
+        var data = await r.json();
+        if (!data.success) return;
+
+        var requests = data.requests || [];
+        var pendingCount = requests.filter(r => r.status === 'pending').length;
+
+        var reqBadge = document.getElementById('requestsCount');
+        if (pendingCount > 0) {
+          reqBadge.style.display = 'inline-block';
+          reqBadge.textContent = pendingCount;
+        } else {
+          reqBadge.style.display = 'none';
+        }
+
+        var listEl = document.getElementById('requestsList');
+        if (requests.length === 0) {
+          listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray-text);font-weight:600;">No paper requests from staff.</div>';
+          return;
+        }
+
+        listEl.innerHTML = requests.map(function(req) {
+          var date = new Date(req.requestedAt).toLocaleString('en-IN');
+          var actionButtons = '';
+          if (req.status === 'pending') {
+            actionButtons = `
+              <div style="display:flex;gap:8px;">
+                <button onclick="handleRequestAction('${req.id}', 'approve')" class="btn-action green">Approve</button>
+                <button onclick="handleRequestAction('${req.id}', 'reject')" class="btn-action red">Reject</button>
+              </div>
+            `;
+          } else {
+            var badgeClass = req.status === 'approved' ? 'chip-good' : 'chip-critical';
+            var badgeText = req.status === 'approved' ? 'Approved' : 'Rejected';
+            actionButtons = `<span class="status-badge-chip ${badgeClass}">${badgeText}</span>`;
+          }
+
+          return `
+            <div class="delivery-card">
+              <div class="delivery-info">
+                <div class="delivery-title">${req.sheets} sheets requested</div>
+                <div class="delivery-meta">
+                  By ${req.requestedBy} &bull; ${date} ${req.note ? ' &bull; <em>"' + req.note + '"</em>' : ''}
+                </div>
+              </div>
+              <div style="flex-shrink:0;display:flex;align-items:center;">${actionButtons}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error loading requests:', err);
+      }
+    }
+
+    async function handleRequestAction(id, action) {
+      if (!confirm('Are you sure you want to ' + action + ' this request?')) return;
+      try {
+        var r = await fetch(API_BASE + '/resources/requests/' + id + '/action', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ action: action })
+        });
+        var data = await r.json();
+        if (data.success) {
+          showAlert('Request ' + action + 'd successfully.');
+          loadRequests();
+          loadStatus();
+        } else {
+          showAlert(data.message || 'Action failed.', 'error');
+        }
+      } catch (e) {
+        showAlert('Network error', 'error');
+      }
+    }
+
+    loadStatus();
+    loadRequests();
+    setInterval(loadStatus, 60000);
+  </script>
+</body>
+</html>

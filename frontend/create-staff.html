@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Staff Account - Printsta SECE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body.admin-body {
+      display: block;
+      padding: 0;
+      background-color: #f9fafb;
+    }
+    .admin-navbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 70px;
+      background: #ffffff; border-bottom: 1px solid #e5e7eb;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 2rem; z-index: 50;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .navbar-left { display: flex; align-items: center; gap: 12px; justify-content: flex-start; }
+    .navbar-logo { height: 32px; width: auto; }
+    .navbar-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .navbar-wordmark {
+      font-size: 1.6rem;
+      font-weight: 800;
+      font-family: var(--font);
+      text-decoration: none;
+      line-height: 1;
+    }
+    .navbar-wordmark .prin { color: var(--navy); }
+    .navbar-wordmark .sta { color: var(--gold); }
+    .navbar-right { display: flex; align-items: center; gap: 1.5rem; justify-content: flex-end; }
+    .logout-btn {
+      background: #f3f4f6; color: #374151; border: none;
+      padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600;
+      font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+    }
+    .logout-btn:hover { background: #e5e7eb; color: #111827; }
+    
+    .container {
+      max-width: 500px;
+      margin: 120px auto 40px auto;
+      padding: 0 1rem;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #111;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 0.5rem;
+    }
+    .form-control {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .form-control:focus {
+      border-color: var(--gold);
+    }
+    .submit-btn {
+      width: 100%;
+      background: var(--navy);
+      color: #ffffff;
+      font-weight: 800;
+      border: none;
+      padding: 0.85rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      transition: background 0.2s;
+      margin-top: 1rem;
+    }
+    .submit-btn:hover {
+      background: #1a2e56;
+    }
+    .cancel-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.25rem;
+      font-size: 0.85rem;
+      color: #6b7280;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .cancel-link:hover {
+      color: #111;
+    }
+    .alert-popup {
+      position: fixed; top: 20px; right: 20px;
+      padding: 12px 20px; border-radius: 8px;
+      color: #fff; font-weight: 600; font-size: 0.9rem;
+      display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .alert-popup.success { background: #10b981; }
+    .alert-popup.error { background: #ef4444; }
+  </style>
+</head>
+<body class="admin-body">
+  <div id="alertPopup" class="alert-popup"></div>
+
+  <!-- Top Navbar -->
+  <nav class="admin-navbar">
+    <div class="navbar-left">
+      <img src="assets/sece-logo.png" alt="SECE Logo" class="navbar-logo" onerror="this.style.display='none'">
+    </div>
+    <div class="navbar-center">
+      <a href="admin.html" class="navbar-wordmark">
+        <span class="prin">print</span><span class="sta">sta</span>
+      </a>
+      <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);font-weight:800;">Admin Portal</span>
+    </div>
+    <div class="navbar-right">
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="card">
+      <div class="card-title">➕ Create Staff Account</div>
+      <div class="card-subtitle">Register a new copier center operator account</div>
+
+      <form id="createStaffForm">
+        <div class="form-group">
+          <label for="newStaffName">Full Name</label>
+          <input type="text" id="newStaffName" class="form-control" placeholder="Enter full name" autocomplete="off" required>
+        </div>
+        <div class="form-group">
+          <label for="newStaffUsername">Username</label>
+          <input type="text" id="newStaffUsername" class="form-control" placeholder="Enter username" autocomplete="off" required>
+        </div>
+        <div class="form-group">
+          <label for="newStaffPassword">Password</label>
+          <input type="password" id="newStaffPassword" class="form-control" placeholder="Enter password (min 8 chars)" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label for="newStaffConfirmPassword">Confirm Password</label>
+          <input type="password" id="newStaffConfirmPassword" class="form-control" placeholder="Re-enter the same password" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label for="adminConfirmPassword">Verify Admin Password</label>
+          <input type="password" id="adminConfirmPassword" class="form-control" placeholder="Enter your current Admin password" required>
+        </div>
+
+        <button type="submit" class="submit-btn">Create Account</button>
+      </form>
+      <a href="admin.html" class="cancel-link">&larr; Back to Dashboard</a>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      window.location.href = 'admin-login.html';
+    }
+
+    const BACKEND_URL = '';
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://prinsta-ohh9.onrender.com';
+
+    function showAlert(message, type = 'success') {
+      const popup = document.getElementById('alertPopup');
+      popup.innerText = message;
+      popup.className = `alert-popup ${type}`;
+      popup.style.display = 'block';
+      setTimeout(() => { popup.style.display = 'none'; }, 4000);
+    }
+
+    document.getElementById('createStaffForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('newStaffName').value.trim();
+      const username = document.getElementById('newStaffUsername').value.trim();
+      const password = document.getElementById('newStaffPassword').value.trim();
+      const confirmPassword = document.getElementById('newStaffConfirmPassword').value.trim();
+      const adminPassword = document.getElementById('adminConfirmPassword').value;
+
+      if (!name || !username || !password || !confirmPassword || !adminPassword) {
+        showAlert('Please fill in all fields.', 'error');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showAlert('Passwords do not match. Please re-enter.', 'error');
+        return;
+      }
+
+      if (password.length < 8) {
+        showAlert('Staff password must be at least 8 characters.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/create-staff`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name, username, password, adminPassword })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          showAlert(`Staff account "${name}" created successfully!`, 'success');
+          setTimeout(() => {
+            window.location.href = 'admin.html';
+          }, 1500);
+        } else {
+          showAlert(data.message || data.error || 'Failed to create staff account.', 'error');
+        }
+      } catch (err) {
+        console.error('Create staff error:', err);
+        showAlert('Could not connect to backend.', 'error');
+      }
+    });
+
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'admin-login.html';
+    }
+  </script>
+</body>
+</html>
