@@ -1,43 +1,5 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
 class ApiConstants {
-  static String _customBaseUrl = '';
-  static const String _defaultBase = 'http://172.17.4.67:3000';
-
-  static Future<void> loadBaseUrl() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _customBaseUrl = prefs.getString('custom_server_url') ?? '';
-    } catch (_) {}
-  }
-
-  static Future<void> setCustomBaseUrl(String url) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final trimmed = url.trim();
-      if (trimmed.isNotEmpty) {
-        String formatted = trimmed;
-        if (!formatted.startsWith('http://') && !formatted.startsWith('https://')) {
-          formatted = 'http://$formatted';
-        }
-        if (!formatted.contains(':', formatted.indexOf('//') + 2)) {
-          formatted = '$formatted:3000';
-        }
-        _customBaseUrl = formatted;
-        await prefs.setString('custom_server_url', _customBaseUrl);
-      } else {
-        _customBaseUrl = '';
-        await prefs.remove('custom_server_url');
-      }
-    } catch (_) {}
-  }
-
-  static String get baseUrl {
-    if (_customBaseUrl.isNotEmpty) {
-      return _customBaseUrl;
-    }
-    return _defaultBase;
-  }
+  static const String baseUrl = 'https://printsta-backend.onrender.com';
 
   // Auth
   static String get login => '$baseUrl/auth/login';

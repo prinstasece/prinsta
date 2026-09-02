@@ -659,10 +659,22 @@
     async function deleteStaff(id, name) {
       if (!confirm(`Are you sure you want to delete the staff account for "${name}"?`)) return;
 
+      // Prompt for admin password
+      const adminPassword = prompt(`Enter admin password to confirm deletion of "${name}":`);
+      if (adminPassword === null) return; // cancelled
+      if (!adminPassword.trim()) {
+        showAlert('Admin password is required to delete a staff account.', 'error');
+        return;
+      }
+
       try {
         const response = await fetch(`${API_BASE}/admin/staff/${id}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password: adminPassword.trim() })
         });
         const data = await response.json();
 
