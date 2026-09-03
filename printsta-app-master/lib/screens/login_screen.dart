@@ -21,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _loading = false;
   String? _error;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: '534651137120-o0acbi2mgtclfmcqf5o8auu30jo1n0pg.apps.googleusercontent.com',
+    scopes: ['email', 'profile'],
   );
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -366,100 +366,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
       await _processGoogleAuth(googleUser.email);
     } catch (err) {
-      print('Google Play Services auth bypass: $err');
+      print('Google Sign-In error: $err');
       setState(() {
         _loading = false;
+        _error = 'Google Sign-In failed ($err). Make sure Android SHA-1 is registered in Google Console.';
       });
-      // Fallback seamlessly to the SECE College Google dialog
-      _showCustomEmailInputDialog();
     }
-  }
-
-  void _showCustomEmailInputDialog() {
-    final emailCtrl = TextEditingController();
-    String? dialogError;
-    bool processing = false;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: AppColors.card,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Row(
-                children: [
-                  Image.asset(
-                    'assets/images/google_logo.png',
-                    height: 24,
-                    width: 24,
-                  ),
-                  const SizedBox(width: 10),
-                  const Text('Google SSO', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 18)),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Sign in with your SECE college Gmail account:',
-                    style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.3),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: emailCtrl,
-                    style: const TextStyle(color: AppColors.text),
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'College Email ID',
-                      hintText: 'e.g. kavin.gs2025ece@sece.ac.in',
-                      errorText: dialogError,
-                      prefixIcon: const Icon(Icons.mail_outline, color: AppColors.primary),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: processing ? null : () async {
-                    final enteredEmail = emailCtrl.text.trim();
-                    if (enteredEmail.isEmpty) {
-                      setDialogState(() => dialogError = 'Email is required');
-                      return;
-                    }
-                    if (!enteredEmail.toLowerCase().endsWith('@sece.ac.in')) {
-                      setDialogState(() => dialogError = 'Only @sece.ac.in college emails allowed');
-                      return;
-                    }
-                    setDialogState(() {
-                      dialogError = null;
-                      processing = true;
-                    });
-
-                    Navigator.pop(context); // Close email prompt
-                    await _processGoogleAuth(enteredEmail);
-                  },
-                  child: processing
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
 
