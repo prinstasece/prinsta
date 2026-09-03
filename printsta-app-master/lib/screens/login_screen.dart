@@ -344,50 +344,52 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
 
     try {
-      const platform = MethodChannel('com.sece.printsta_app/auth');
-      final String? deviceEmail = await platform.invokeMethod<String>('chooseDeviceAccount');
-      if (deviceEmail != null && deviceEmail.isNotEmpty) {
-        if (!deviceEmail.toLowerCase().endsWith('@sece.ac.in')) {
-          setState(() {
-            _loading = false;
-            _error = 'Only @sece.ac.in Google accounts are allowed.';
-          });
-          return;
-        }
-        await _processGoogleAuth(deviceEmail);
-      } else {
-        setState(() {
-          _loading = false;
-        });
-      }
-    } catch (e) {
       try {
-        try {
-          await _googleSignIn.signOut();
-        } catch (_) {}
+        await _googleSignIn.signOut();
+      } catch (_) {}
 
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) {
-          setState(() {
-            _loading = false;
-          });
-          return;
-        }
-
-        if (!googleUser.email.toLowerCase().endsWith('@sece.ac.in')) {
-          setState(() {
-            _loading = false;
-            _error = 'Only @sece.ac.in Google accounts are allowed.';
-          });
-          return;
-        }
-        await _processGoogleAuth(googleUser.email);
-      } catch (err) {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
         setState(() {
           _loading = false;
-          _error = 'Google Sign-In failed: $err';
         });
+        return;
       }
+
+      if (!googleUser.email.toLowerCase().endsWith('@sece.ac.in')) {
+        setState(() {
+          _loading = false;
+          _error = 'Only @sece.ac.in Google accounts are allowed.';
+        });
+        return;
+      }
+
+      try {
+        final GoogleSignInAuthentication auth = await googleUser.authentication;
+        final String? idToken = auth.idToken;
+
+        if (idToken != null && idToken.isNotEmpty) {
+          final res = await context.read<AuthService>().loginWithGoogle(idToken);
+          if (!mounted) return;
+          if (res['success'] == true) {
+            if (res['profileIncomplete'] == true) {
+              setState(() => _loading = false);
+              _showCompleteProfileDialog();
+            } else {
+              setState(() => _loading = false);
+            }
+            return;
+          }
+        }
+      } catch (_) {}
+
+      await _processGoogleAuth(googleUser.email);
+    } catch (err) {
+      print('Google Sign-In error: $err');
+      setState(() {
+        _loading = false;
+        _error = 'Google Sign-In could not complete. Please enter your register number or email to login.';
+      });
     }
   }
 
