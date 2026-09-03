@@ -64,6 +64,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
       await Future.delayed(Duration(milliseconds: 1500 - elapsed.inMilliseconds));
     }
     setState(() => _loading = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.requestPermission(context: context);
+    });
   }
 
   @override

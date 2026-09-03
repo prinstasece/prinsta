@@ -61,10 +61,49 @@ class _StudentDashboardState extends State<StudentDashboard> {
     super.initState();
     _loadCartFromPrefs();
     NotificationService.startPolling();
+
+    // Request notification permission immediately on dashboard load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.requestPermission(context: context);
+    });
+
+    // In-app alert banner when order is marked ready
+    NotificationService.onOrderReady = (token, msg) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF16A34A),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 6),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    msg,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            action: SnackBarAction(
+              label: 'VIEW',
+              textColor: Colors.white,
+              onPressed: () => setState(() => _tab = 2),
+            ),
+          ),
+        );
+        _refreshOrdersNotifier.value = !_refreshOrdersNotifier.value;
+      }
+    };
   }
 
   @override
   void dispose() {
+    NotificationService.onOrderReady = null;
     _refreshOrdersNotifier.dispose();
     super.dispose();
   }
