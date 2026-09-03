@@ -2357,11 +2357,19 @@ app.post('/auth/google', async (req, res) => {
       student = await Student.findOne({ email });
 
       if (!student) {
-        return res.status(400).json({
-          success: false,
-          errorType: 'NOT_REGISTERED',
-          message: 'Google account is not registered. Please register first.'
+        // Auto-register new SECE college student on first Google Login
+        student = new Student({
+          email,
+          firstName,
+          lastName,
+          department: emailProfile ? emailProfile.department : undefined,
+          batch: emailProfile ? emailProfile.batch : undefined,
+          isVerified: true,
+          registerNumber: null,
+          phone: null
         });
+        await student.save();
+        console.log(`[Google Auth] Auto-registered new student: ${email}`);
       } else {
         // Automatically make existing student verified if they log in via Google
         if (student.isVerified === false) {
@@ -2379,11 +2387,19 @@ app.post('/auth/google', async (req, res) => {
       student = inMemoryStudents.find(s => s.email === email);
 
       if (!student) {
-        return res.status(400).json({
-          success: false,
-          errorType: 'NOT_REGISTERED',
-          message: 'Google account is not registered. Please register first.'
-        });
+        student = {
+          _id: 'mem_std_' + Date.now(),
+          email,
+          firstName,
+          lastName,
+          department: emailProfile ? emailProfile.department : undefined,
+          batch: emailProfile ? emailProfile.batch : undefined,
+          isVerified: true,
+          registerNumber: null,
+          phone: null
+        };
+        inMemoryStudents.push(student);
+        console.log(`[Google Auth] Auto-registered in-memory student: ${email}`);
       } else {
         if (student.isVerified === false) {
           student.isVerified = true;

@@ -62,9 +62,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _loadCartFromPrefs();
     NotificationService.startPolling();
 
-    // Request notification permission immediately on dashboard load
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Request notification permission immediately on dashboard load & check profile completion
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       NotificationService.requestPermission(context: context);
+      await _checkProfileCompletion();
     });
 
     // In-app alert banner when order is marked ready
@@ -99,6 +100,157 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _refreshOrdersNotifier.value = !_refreshOrdersNotifier.value;
       }
     };
+  }
+
+  Future<void> _checkProfileCompletion() async {
+    try {
+      final auth = context.read<AuthService>();
+      await auth.fetchProfile();
+      if (!mounted) return;
+
+      final profile = auth.profile;
+      if (profile != null) {
+        final regNum = profile['registerNumber']?.toString() ?? '';
+        if (regNum.trim().isEmpty) {
+          _showCompleteProfileDialog(profile);
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _showCompleteProfileDialog(Map<String, dynamic> profile) {
+    final regCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController(text: profile['phone']?.toString() ?? '');
+    String? dialogError;
+    bool saving = false;
+
+    final dept = profile['department']?.toString() ?? 'Auto-detected';
+    final batch = profile['batch']?.toString() ?? 'Auto-detected';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.person_add_alt_1, color: Color(0xFF1A2A4A), size: 26),
+              SizedBox(width: 10),
+              Text('Complete Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1A2A4A))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Welcome to Printsta! Enter your register number and phone to complete your student profile:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF4B5563), height: 1.4),
+                ),
+                const SizedBox(height: 14),
+
+                // Auto-detected Dept / Batch card
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('DEPARTMENT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
+                          Text(dept, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1A2A4A))),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text('BATCH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
+                          Text(batch, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1A2A4A))),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                TextField(
+                  controller: regCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 12,
+                  decoration: InputDecoration(
+                    labelText: 'Register Number (12 digits)',
+                    hintText: 'e.g. 722825106074',
+                    errorText: dialogError,
+                    counterText: '',
+                    prefixIcon: const Icon(Icons.badge_outlined, color: Color(0xFF1A2A4A)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile Number',
+                    hintText: 'e.g. 9876543210',
+                    prefixIcon: Icon(Icons.phone_outlined, color: Color(0xFF1A2A4A)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A2A4A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: saving ? null : () async {
+                final regVal = regCtrl.text.trim();
+                final phoneVal = phoneCtrl.text.trim();
+
+                if (regVal.length != 12 || int.tryParse(regVal) == null) {
+                  setDialogState(() => dialogError = 'Please enter a valid 12-digit register number.');
+                  return;
+                }
+                setDialogState(() {
+                  saving = true;
+                  dialogError = null;
+                });
+
+                final res = await context.read<AuthService>().completeGoogleProfile(regVal, phoneVal);
+                if (ctx.mounted) {
+                  if (res['success'] == true) {
+                    await context.read<AuthService>().fetchProfile();
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile completed successfully! Welcome to Printsta.')),
+                    );
+                  } else {
+                    setDialogState(() {
+                      saving = false;
+                      dialogError = res['message'] ?? 'Failed to update profile.';
+                    });
+                  }
+                }
+              },
+              child: saving
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text('Save & Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
