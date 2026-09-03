@@ -1324,8 +1324,74 @@
       }
     }
 
+    // ── INTERNAL STAFF CONFIRMATION MODAL ──
+    function showStaffPrompt({ title, desc, inputType = 'password', inputLabel = 'Staff Password', inputPlaceholder = 'Enter staff password...', confirmText = 'Confirm', confirmColor = '#dc2626' }) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('staffConfirmModal');
+        const titleEl = document.getElementById('staffModalTitle');
+        const descEl = document.getElementById('staffModalDesc');
+        const inputContainer = document.getElementById('staffModalInputContainer');
+        const inputLabelEl = document.getElementById('staffModalInputLabel');
+        const inputField = document.getElementById('staffModalInputField');
+        const inputError = document.getElementById('staffModalInputError');
+        const cancelBtn = document.getElementById('staffModalCancelBtn');
+        const confirmBtn = document.getElementById('staffModalConfirmBtn');
+
+        titleEl.textContent = title;
+        descEl.innerHTML = desc;
+        inputLabelEl.textContent = inputLabel;
+        inputField.type = inputType;
+        inputField.placeholder = inputPlaceholder;
+        inputField.value = '';
+        inputError.style.display = 'none';
+        inputContainer.style.display = inputType ? 'block' : 'none';
+
+        confirmBtn.textContent = confirmText;
+        confirmBtn.style.background = confirmColor;
+
+        modal.style.display = 'flex';
+        inputField.focus();
+
+        function cleanup() {
+          modal.style.display = 'none';
+          cancelBtn.onclick = null;
+          confirmBtn.onclick = null;
+          inputField.onkeydown = null;
+        }
+
+        cancelBtn.onclick = () => {
+          cleanup();
+          resolve(null);
+        };
+
+        function onConfirm() {
+          const val = inputField.value;
+          if (inputType && !val.trim()) {
+            inputError.textContent = 'Staff password is required.';
+            inputError.style.display = 'block';
+            return;
+          }
+          cleanup();
+          resolve(val || true);
+        }
+
+        confirmBtn.onclick = onConfirm;
+        inputField.onkeydown = (e) => {
+          if (e.key === 'Enter') onConfirm();
+          if (e.key === 'Escape') { cleanup(); resolve(null); }
+        };
+      });
+    }
+
     async function promptReopenShop() {
-      const confirmReopen = confirm('Are you sure you want to Reopen the Shop? This will enable document uploads for students again.');
+      const confirmReopen = await showStaffPrompt({
+        title: 'Reopen Shop',
+        desc: 'Are you sure you want to <b>Reopen the Shop</b>? This will enable document uploads for students again.',
+        inputType: '',
+        confirmText: 'Reopen Shop',
+        confirmColor: '#16a34a'
+      });
+
       if (!confirmReopen) return;
 
       try {
@@ -1349,12 +1415,17 @@
     }
 
     async function promptCloseShop() {
-      const password = prompt('Enter your password to Close the Shop and email daily report to Admin:');
-      if (password === null) return; // Cancelled
-      if (password.trim() === '') {
-        showAlert('Password cannot be empty.', 'error');
-        return;
-      }
+      const password = await showStaffPrompt({
+        title: 'Close Shop & Send Daily Report',
+        desc: 'Enter your <b>Staff Password</b> to close the shop for today. Daily reports will be compiled and emailed to <b>prinstasece1@gmail.com</b>:',
+        inputType: 'password',
+        inputLabel: 'Staff Password',
+        inputPlaceholder: 'Enter your staff account password...',
+        confirmText: 'Close Shop & Send Report',
+        confirmColor: '#dc2626'
+      });
+
+      if (!password || typeof password !== 'string' || password.trim() === '') return;
 
       try {
         const res = await fetch(`${API_BASE}/staff/close-shop`, {
@@ -1363,7 +1434,7 @@
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ password })
+          body: JSON.stringify({ password: password.trim() })
         });
         const data = await res.json();
         if (data.success) {
@@ -2620,6 +2691,24 @@
     }
   </script>
 
+  <!-- Custom Built-in Staff Confirmation Modal -->
+  <div id="staffConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
+    <div style="background:white; border-radius:16px; padding:2rem; max-width:440px; width:100%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+      <h3 id="staffModalTitle" style="color:#111; margin:0 0 0.5rem 0; font-size:1.15rem; font-weight:800;">Close Shop</h3>
+      <p id="staffModalDesc" style="color:#4b5563; font-size:0.88rem; margin:0 0 1.25rem 0; line-height:1.4;"></p>
+      
+      <div id="staffModalInputContainer" style="margin-bottom:1.5rem; display:none;">
+        <label id="staffModalInputLabel" style="display:block; font-size:0.78rem; font-weight:700; color:#374151; margin-bottom:6px; text-transform:uppercase;">Staff Password</label>
+        <input type="password" id="staffModalInputField" style="width:100%; padding:10px 14px; border:1.5px solid #d1d5db; border-radius:8px; font-size:0.95rem; box-sizing:border-box;" placeholder="Enter your staff password...">
+        <div id="staffModalInputError" style="color:#dc2626; font-size:0.78rem; font-weight:600; margin-top:4px; display:none;"></div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" id="staffModalCancelBtn" style="padding:10px 18px; border:1px solid #d1d5db; background:white; color:#4b5563; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer;">Cancel</button>
+        <button type="button" id="staffModalConfirmBtn" style="padding:10px 20px; border:none; background:#dc2626; color:white; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer;">Confirm</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>

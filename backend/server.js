@@ -58,6 +58,7 @@ const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "uRAJgzPthR4Zqhyq
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/printsta";
 const JWT_SECRET = process.env.JWT_SECRET || "YOUR_JWT_SECRET_KEY";
 const PORT = process.env.PORT || 3000;
+const ADMIN_REPORT_EMAIL = process.env.ADMIN_REPORT_EMAIL || 'prinstasece1@gmail.com';
 
 // Role-scoped JWT secrets (fall back to JWT_SECRET for backwards compat)
 const STUDENT_JWT_SECRET = process.env.STUDENT_JWT_SECRET || JWT_SECRET;
@@ -1002,20 +1003,30 @@ app.post('/staff/close-shop', authenticateStaff, async (req, res) => {
     }
 
     let isPasswordValid = false;
+    let staffName = req.staff.name || req.staff.username || 'Staff';
+
     if (dbConnected) {
-      const staff = await Staff.findById(req.staff.id);
+      let staff = null;
+      if (req.staff.id) {
+        staff = await Staff.findById(req.staff.id);
+      }
+      if (!staff && req.staff.username) {
+        staff = await Staff.findOne({ username: req.staff.username });
+      }
       if (staff) {
+        staffName = staff.name || staff.username;
         isPasswordValid = await bcrypt.compare(password, staff.passwordHash);
       }
     } else {
-      const staff = inMemoryStaff.find(s => s.username === req.staff.username);
+      const staff = inMemoryStaff.find(s => s.username === req.staff.username || s.id === req.staff.id);
       if (staff) {
+        staffName = staff.name || staff.username;
         isPasswordValid = await bcrypt.compare(password, staff.passwordHash);
       }
     }
 
     if (!isPasswordValid) {
-      return res.status(401).json({ success: false, message: 'Invalid password. Shop close rejected.' });
+      return res.status(401).json({ success: false, message: 'Invalid staff password. Shop close rejected.' });
     }
 
     // Generate Daily Report
@@ -1252,7 +1263,7 @@ app.post('/staff/close-shop', authenticateStaff, async (req, res) => {
 
     const pdfBuffer = await generatePDF();
 
-    const adminEmail = 'kavin.ssg2025ece@sece.ac.in';
+    const adminEmail = ADMIN_REPORT_EMAIL;
 
     if (emailTransporter) {
       try {

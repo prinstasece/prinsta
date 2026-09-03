@@ -17,9 +17,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneCtrl = TextEditingController();
   final _regNoCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
   String _department = 'CSE';
   String _batch = '2022-2026';
   bool _obscure = true;
+  bool _obscureConfirm = true;
   bool _loading = false;
   String? _error;
   String? _success;
@@ -69,6 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _firstNameCtrl.dispose(); _lastNameCtrl.dispose();
     _emailCtrl.dispose(); _phoneCtrl.dispose();
     _regNoCtrl.dispose(); _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -178,6 +181,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
+      setState(() => _error = 'Passwords do not match.');
+      return;
+    }
     setState(() { _loading = true; _error = null; _success = null; });
     final result = await context.read<AuthService>().register(
       firstName: _firstNameCtrl.text.trim(),
@@ -365,6 +372,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Required';
                   if (v.length < 8) return 'Min 8 characters';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _confirmPasswordCtrl,
+                obscureText: _obscureConfirm,
+                style: const TextStyle(color: AppColors.text),
+                decoration: InputDecoration(
+                  labelText: 'Confirm Password',
+                  prefixIcon: const Icon(Icons.lock_reset_outlined, color: AppColors.textMuted),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility, color: AppColors.textMuted),
+                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Required';
+                  if (v != _passwordCtrl.text) return 'Passwords do not match';
                   return null;
                 },
               ),
