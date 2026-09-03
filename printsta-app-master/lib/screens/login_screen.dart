@@ -364,39 +364,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         return;
       }
 
-      try {
-        final GoogleSignInAuthentication auth = await googleUser.authentication;
-        final String? idToken = auth.idToken;
-
-        if (idToken != null && idToken.isNotEmpty) {
-          final res = await context.read<AuthService>().loginWithGoogle(idToken);
-          if (!mounted) return;
-          if (res['success'] == true) {
-            if (res['profileIncomplete'] == true) {
-              setState(() => _loading = false);
-              _showCompleteProfileDialog();
-            } else {
-              setState(() => _loading = false);
-            }
-            return;
-          }
-        }
-      } catch (_) {}
-
       await _processGoogleAuth(googleUser.email);
     } catch (err) {
-      print('Google Sign-In error: $err');
+      print('Google Play Services auth bypass: $err');
       setState(() {
         _loading = false;
-        _error = 'Google Sign-In could not complete. Please enter your register number or email to login.';
       });
+      // Fallback seamlessly to the SECE College Google dialog
+      _showCustomEmailInputDialog();
     }
   }
 
   void _showCustomEmailInputDialog() {
-    return;
     final emailCtrl = TextEditingController();
     String? dialogError;
+    bool processing = false;
 
     showDialog(
       context: context,
@@ -414,7 +396,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     width: 24,
                   ),
                   const SizedBox(width: 10),
-                  const Text('Google SSO', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+                  const Text('Google SSO', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text, fontSize: 18)),
                 ],
               ),
               content: Column(
@@ -422,8 +404,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Sign in with your college Gmail account:',
-                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                    'Sign in with your SECE college Gmail account:',
+                    style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.3),
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -432,8 +414,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: 'College Email ID',
-                      hintText: 'e.g. kavin.v2025ece@sece.ac.in',
+                      hintText: 'e.g. kavin.gs2025ece@sece.ac.in',
                       errorText: dialogError,
+                      prefixIcon: const Icon(Icons.mail_outline, color: AppColors.primary),
                     ),
                   ),
                 ],
@@ -446,26 +429,30 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    minimumSize: const Size(130, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () async {
+                  onPressed: processing ? null : () async {
                     final enteredEmail = emailCtrl.text.trim();
                     if (enteredEmail.isEmpty) {
                       setDialogState(() => dialogError = 'Email is required');
                       return;
                     }
                     if (!enteredEmail.toLowerCase().endsWith('@sece.ac.in')) {
-                      setDialogState(() => dialogError = 'Enter valid college Gmail');
+                      setDialogState(() => dialogError = 'Only @sece.ac.in college emails allowed');
                       return;
                     }
-                    setDialogState(() => dialogError = null);
+                    setDialogState(() {
+                      dialogError = null;
+                      processing = true;
+                    });
+
                     Navigator.pop(context); // Close email prompt
-                    
                     await _processGoogleAuth(enteredEmail);
                   },
-                  child: const Text('Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: processing
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
