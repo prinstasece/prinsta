@@ -951,7 +951,7 @@
         a.style.display = 'none';
         a.href = url;
         const todayStr = new Date().toISOString().split('T')[0];
-        a.download = `Printsta_Financial_Audit_Report_${todayStr}.xlsx`;
+        a.download = `Printsta_Earnings_Report_${todayStr}.xlsx`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);

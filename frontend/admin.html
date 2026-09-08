@@ -916,13 +916,13 @@
         a.style.display = 'none';
         a.href = url;
         const todayStr = new Date().toISOString().split('T')[0];
-        a.download = `Printsta_Financial_Audit_Report_${todayStr}.xlsx`;
+        a.download = `Printsta_Earnings_Report_${todayStr}.xlsx`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
 
-        showAlert('Financial Audit Excel report downloaded successfully!', 'success');
+        showAlert('Earnings Excel report downloaded successfully!', 'success');
       } catch (err) {
         console.error('Export error:', err);
         showAlert('Failed to download financial report from server.', 'error');
