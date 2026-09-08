@@ -448,9 +448,16 @@
   <!-- Main Content Area -->
   <main class="main-content">
     
-    <header class="content-header">
-      <h1>Admin Management Console</h1>
-      <div class="header-date" id="currentDateDisplay">Date: -</div>
+    <header class="content-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <h1>Admin Management Console</h1>
+        <div class="header-date" id="currentDateDisplay">Date: -</div>
+      </div>
+      <div>
+        <button type="button" onclick="exportAdminFinancialExcel()" style="background:var(--navy); color:#fff; font-weight:700; border:none; padding:0.65rem 1.25rem; border-radius:8px; cursor:pointer; font-size:0.88rem; display:flex; align-items:center; gap:8px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background 0.15s;" onmouseover="this.style.background='#111c33'" onmouseout="this.style.background='var(--navy)'">
+          <span style="font-size:1.1rem;">📊</span> Export Financial Report (.xlsx)
+        </button>
+      </div>
     </header>
 
     <!-- Stats Row -->
@@ -890,6 +897,37 @@
       loadStaff();
       loadPrintQueue();
     }, 10000);
+
+    // ── EXPORT FINANCIAL EXCEL REPORT ──
+    async function exportAdminFinancialExcel() {
+      try {
+        showAlert('Compiling institutional financial earnings report...', 'success');
+        const res = await fetch(`${API_BASE}/admin/export-earnings-excel`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) throw new Error('Server status: ' + res.status);
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const todayStr = new Date().toISOString().split('T')[0];
+        a.download = `Printsta_Financial_Audit_Report_${todayStr}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showAlert('Financial Audit Excel report downloaded successfully!', 'success');
+      } catch (err) {
+        console.error('Export error:', err);
+        showAlert('Failed to download financial report from server.', 'error');
+      }
+    }
 
     // ── LOGOUT ──
     function logout() {

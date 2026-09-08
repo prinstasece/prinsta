@@ -1045,28 +1045,33 @@ app.post('/staff/close-shop', authenticateStaff, async (req, res) => {
       totalAmount += o.amount || 0;
     });
 
-    const staffName = req.staff.name || req.staff.username;
     const reportDateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
     // 1. Generate protected Excel file using ExcelJS
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Daily Transactions');
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    const sheet = workbook.addWorksheet('Daily Transactions', {
+      views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
+    });
 
     sheet.columns = [
-      { header: 'Token Number', key: 'token' },
-      { header: 'Student Name', key: 'name' },
-      { header: 'Register Number', key: 'regNo' },
-      { header: 'Department', key: 'dept' },
-      { header: 'File / Order Name', key: 'file' },
-      { header: 'Transaction ID', key: 'txId' },
-      { header: 'Color Mode', key: 'color' },
-      { header: 'Sides', key: 'sides' },
-      { header: 'Copies', key: 'copies' },
-      { header: 'Binding', key: 'binding' },
-      { header: 'Amount per User (Rs)', key: 'amount' },
-      { header: 'Status', key: 'status' },
-      { header: 'Timestamp', key: 'time' }
+      { header: 'Token #', key: 'token', width: 12 },
+      { header: 'Student Name', key: 'name', width: 22 },
+      { header: 'Register Number', key: 'regNo', width: 16 },
+      { header: 'Department', key: 'dept', width: 14 },
+      { header: 'Order Type', key: 'orderType', width: 14 },
+      { header: 'File / Order Name', key: 'file', width: 28 },
+      { header: 'Transaction ID', key: 'txId', width: 24 },
+      { header: 'Color Mode', key: 'color', width: 12 },
+      { header: 'Sides', key: 'sides', width: 14 },
+      { header: 'Pages', key: 'pages', width: 9 },
+      { header: 'Copies', key: 'copies', width: 9 },
+      { header: 'Total Pages', key: 'totalPages', width: 13 },
+      { header: 'Binding', key: 'binding', width: 12 },
+      { header: 'Binding Fee (₹)', key: 'bindFee', width: 15 },
+      { header: 'Print Fee (₹)', key: 'printFee', width: 15 },
+      { header: 'Total Paid (₹)', key: 'amount', width: 16 },
+      { header: 'Status', key: 'status', width: 13 },
+      { header: 'Timestamp', key: 'time', width: 20 }
     ];
 
     todayOrders.forEach(o => {
@@ -1075,42 +1080,47 @@ app.post('/staff/close-shop', authenticateStaff, async (req, res) => {
         : (o.fileName || 'N/A');
       const txId = o.razorpayPaymentId || o.razorpayOrderId || 'N/A';
       
+      const pgs = o.pages || 1;
+      const cps = o.copies || 1;
+      const totPages = pgs * cps;
+
+      let bFee = 0;
+      if (o.binding === 'spiral') bFee = 20;
+      else if (o.binding === 'calico') bFee = 40;
+
+      const amt = o.amount || 0;
+      const pFee = Math.max(0, amt - bFee);
+
       sheet.addRow({
-        token: o.tokenNumber || 'N/A',
+        token: o.tokenNumber ? `#${o.tokenNumber}` : 'N/A',
         name: o.studentName || '',
         regNo: o.registerNumber || '',
         dept: o.department || '',
+        orderType: o.orderType === 'xerox' ? 'Physical Xerox' : 'Digital Upload',
         file: orderName,
         txId: txId,
         color: o.colorMode === 'bw' ? 'B&W' : 'Color',
         sides: o.sides === 'single' ? 'Single Sided' : 'Double Sided',
-        copies: o.copies || 1,
-        binding: o.binding || 'none',
-        amount: o.amount || 0,
-        status: o.status || '',
+        pages: pgs,
+        copies: cps,
+        totalPages: totPages,
+        binding: o.binding && o.binding !== 'none' ? o.binding.toUpperCase() : 'None',
+        bindFee: bFee,
+        printFee: pFee,
+        amount: amt,
+        status: (o.status || '').toUpperCase(),
         time: o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN') : ''
       });
     });
 
     sheet.addRow({});
     const totalRow = sheet.addRow({
-      token: 'Total Amount Collected:',
+      token: 'TOTAL REVENUE COLLECTED:',
       amount: totalAmount
     });
-    totalRow.getCell('token').font = { bold: true };
-    totalRow.getCell('amount').font = { bold: true };
-
-    // Auto-adjust column widths based on content length
-    sheet.columns.forEach(column => {
-      let maxLength = 0;
-      column.eachCell({ includeEmpty: true }, cell => {
-        const value = cell.value ? cell.value.toString() : '';
-        if (value.length > maxLength) {
-          maxLength = value.length;
-        }
-      });
-      column.width = Math.max(maxLength + 4, 12);
-    });
+    totalRow.getCell('token').font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+    totalRow.getCell('amount').font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF15803D' } };
+    totalRow.getCell('amount').numFmt = '"₹"#,##0.00';
 
     // Style header row
     const headerRow = sheet.getRow(1);
@@ -3473,6 +3483,612 @@ app.get('/earnings/history', authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error("Get Earnings History Error:", error);
     return res.status(500).json({ success: false, message: 'Server processing error.' });
+  }
+});
+
+// 6c. GET Export Professional Earnings Excel (.xlsx) Report with Detailed Financial Metrics
+app.get(['/admin/export-earnings-excel', '/earnings/export-excel'], authenticateAdmin, async (req, res) => {
+  try {
+    const { from, to, range } = req.query;
+
+    let filter = { paymentStatus: 'paid' };
+    let periodLabel = 'All Time History';
+
+    if (range === 'today') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      filter.createdAt = { $gte: start };
+      periodLabel = `Today (${start.toLocaleDateString('en-IN')})`;
+    } else if (range === '7days') {
+      const start = new Date();
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      filter.createdAt = { $gte: start };
+      periodLabel = `Last 7 Days (Since ${start.toLocaleDateString('en-IN')})`;
+    } else if (range === '30days') {
+      const start = new Date();
+      start.setDate(start.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+      filter.createdAt = { $gte: start };
+      periodLabel = `Last 30 Days (Since ${start.toLocaleDateString('en-IN')})`;
+    } else if (from && to) {
+      const fromDate = new Date(from);
+      fromDate.setHours(0, 0, 0, 0);
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      filter.createdAt = { $gte: fromDate, $lte: toDate };
+      periodLabel = `${from} to ${to}`;
+    }
+
+    let orders = [];
+    if (dbConnected) {
+      orders = await PrintOrder.find(filter).sort({ createdAt: -1 });
+    } else {
+      orders = inMemoryOrders.filter(o => {
+        if (o.paymentStatus !== 'paid') return false;
+        if (filter.createdAt) {
+          const date = new Date(o.createdAt);
+          if (filter.createdAt.$gte && date < filter.createdAt.$gte) return false;
+          if (filter.createdAt.$lte && date > filter.createdAt.$lte) return false;
+        }
+        return true;
+      }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Printsta Autonomous Financial System';
+    workbook.lastModifiedBy = 'SECE Admin';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+
+    // ─────────────────────────────────────────────────────────────
+    // SHEET 1: EXECUTIVE SUMMARY & FINANCIAL AUDIT
+    // ─────────────────────────────────────────────────────────────
+    const summarySheet = workbook.addWorksheet('📊 Earnings Summary', {
+      views: [{ showGridLines: true }]
+    });
+
+    // Theme Palettes
+    const NAVY_DARK = 'FF0F172A';
+    const NAVY_HEADER = 'FF1E293B';
+    const BRAND_BLUE = 'FF1E40AF';
+    const TEAL_ACCENT = 'FF0F766E';
+    const GREEN_KPI = 'FF15803D';
+    const GRAY_LIGHT = 'FFF8FAFC';
+    const GRAY_BORDER = 'FFE2E8F0';
+
+    // Banner Headers
+    summarySheet.mergeCells('A1:I1');
+    const titleCell = summarySheet.getCell('A1');
+    titleCell.value = 'SRI ESHWAR COLLEGE OF ENGINEERING (Autonomous)';
+    titleCell.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_DARK } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    summarySheet.getRow(1).height = 28;
+
+    summarySheet.mergeCells('A2:I2');
+    const subTitleCell = summarySheet.getCell('A2');
+    subTitleCell.value = 'PRINTSTA — COMPREHENSIVE FINANCIAL EARNINGS & REVENUE AUDIT REPORT';
+    subTitleCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF93C5FD' } };
+    subTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_DARK } };
+    subTitleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    summarySheet.getRow(2).height = 22;
+
+    summarySheet.mergeCells('A3:I3');
+    const metaCell = summarySheet.getCell('A3');
+    const genDateStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    metaCell.value = `Report Period: ${periodLabel}   |   Generated On: ${genDateStr} IST   |   Classification: Institutional Financial Audit`;
+    metaCell.font = { name: 'Segoe UI', size: 9.5, italic: true, color: { argb: 'FFCBD5E1' } };
+    metaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_DARK } };
+    metaCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    summarySheet.getRow(3).height = 20;
+
+    // Calculate Global Financial Metrics
+    let totalRevenue = 0;
+    let totalOrdersCount = orders.length;
+    let totalPagesPrinted = 0;
+    let totalSheetsUsed = 0;
+    let bwRevenue = 0;
+    let colorRevenue = 0;
+    let bindingRevenue = 0;
+    let digitalRevenue = 0;
+    let xeroxRevenue = 0;
+    let bwOrdersCount = 0;
+    let colorOrdersCount = 0;
+
+    const dailyMap = {};
+    const deptMap = {};
+
+    orders.forEach(o => {
+      const amt = o.amount || 0;
+      totalRevenue += amt;
+
+      const pgs = o.pages || 1;
+      const cps = o.copies || 1;
+      const orderPages = pgs * cps;
+      totalPagesPrinted += orderPages;
+
+      const orderSheets = (o.sides === 'double') ? Math.ceil(pgs / 2) * cps : orderPages;
+      totalSheetsUsed += orderSheets;
+
+      let bFee = 0;
+      if (o.binding === 'spiral') bFee = 20;
+      else if (o.binding === 'calico') bFee = 40;
+      bindingRevenue += bFee;
+
+      const printPart = Math.max(0, amt - bFee);
+      if (o.colorMode === 'color') {
+        colorRevenue += printPart;
+        colorOrdersCount++;
+      } else {
+        bwRevenue += printPart;
+        bwOrdersCount++;
+      }
+
+      if (o.orderType === 'xerox') {
+        xeroxRevenue += amt;
+      } else {
+        digitalRevenue += amt;
+      }
+
+      // Daily Grouping
+      const dateKey = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : 'Unknown';
+      if (!dailyMap[dateKey]) {
+        dailyMap[dateKey] = {
+          date: dateKey,
+          orders: 0,
+          bwCount: 0,
+          colorCount: 0,
+          pages: 0,
+          sheets: 0,
+          printRev: 0,
+          bindRev: 0,
+          totalRev: 0
+        };
+      }
+      dailyMap[dateKey].orders++;
+      if (o.colorMode === 'color') dailyMap[dateKey].colorCount++;
+      else dailyMap[dateKey].bwCount++;
+      dailyMap[dateKey].pages += orderPages;
+      dailyMap[dateKey].sheets += orderSheets;
+      dailyMap[dateKey].printRev += printPart;
+      dailyMap[dateKey].bindRev += bFee;
+      dailyMap[dateKey].totalRev += amt;
+
+      // Department Grouping
+      const deptKey = (o.department || 'Other').trim().toUpperCase();
+      if (!deptMap[deptKey]) {
+        deptMap[deptKey] = {
+          dept: deptKey,
+          orders: 0,
+          pages: 0,
+          bwRev: 0,
+          colorRev: 0,
+          bindRev: 0,
+          totalRev: 0
+        };
+      }
+      deptMap[deptKey].orders++;
+      deptMap[deptKey].pages += orderPages;
+      if (o.colorMode === 'color') deptMap[deptKey].colorRev += printPart;
+      else deptMap[deptKey].bwRev += printPart;
+      deptMap[deptKey].bindRev += bFee;
+      deptMap[deptKey].totalRev += amt;
+    });
+
+    const aov = totalOrdersCount > 0 ? (totalRevenue / totalOrdersCount) : 0;
+
+    // KPI Section Header
+    summarySheet.getCell('A5').value = '1. FINANCIAL KEY PERFORMANCE INDICATORS (KPIs)';
+    summarySheet.getCell('A5').font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: BRAND_BLUE } };
+
+    // KPI Block 1: Volume & Revenue
+    const kpiData = [
+      ['Metric Description', 'Value', '', 'Revenue Breakdown Stream', 'Amount (INR)'],
+      ['Total Gross Revenue', totalRevenue, '', 'B&W Print Collections', bwRevenue],
+      ['Total Orders Processed', totalOrdersCount, '', 'Color Print Collections', colorRevenue],
+      ['Average Order Value (AOV)', aov, '', 'Binding Fees Collected', bindingRevenue],
+      ['Total Pages Printed', totalPagesPrinted, '', 'Digital Print Uploads', digitalRevenue],
+      ['Total Paper Sheets Consumed', totalSheetsUsed, '', 'Physical Xerox Orders', xeroxRevenue]
+    ];
+
+    kpiData.forEach((row, idx) => {
+      const rNum = 6 + idx;
+      const sheetRow = summarySheet.getRow(rNum);
+      sheetRow.values = [row[0], row[1], '', '', row[3], row[4]];
+      sheetRow.height = 20;
+
+      if (idx === 0) {
+        // Headers
+        ['A', 'B', 'E', 'F'].forEach(col => {
+          const c = summarySheet.getCell(`${col}${rNum}`);
+          c.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_HEADER } };
+          c.alignment = { vertical: 'middle', horizontal: col === 'A' || col === 'E' ? 'left' : 'right' };
+        });
+      } else {
+        // Metric rows
+        const cA = summarySheet.getCell(`A${rNum}`);
+        const cB = summarySheet.getCell(`B${rNum}`);
+        const cE = summarySheet.getCell(`E${rNum}`);
+        const cF = summarySheet.getCell(`F${rNum}`);
+
+        cA.font = { name: 'Segoe UI', size: 10, bold: idx === 1 };
+        cB.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: idx === 1 ? GREEN_KPI : 'FF000000' } };
+        cE.font = { name: 'Segoe UI', size: 10 };
+        cF.font = { name: 'Segoe UI', size: 10, bold: true };
+
+        cA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? GRAY_LIGHT : 'FFFFFFFF' } };
+        cB.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? GRAY_LIGHT : 'FFFFFFFF' } };
+        cE.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? GRAY_LIGHT : 'FFFFFFFF' } };
+        cF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? GRAY_LIGHT : 'FFFFFFFF' } };
+
+        // Number Formatting
+        if (idx === 1 || idx === 3) cB.numFmt = '"₹"#,##0.00';
+        else cB.numFmt = '#,##0';
+        cF.numFmt = '"₹"#,##0.00';
+
+        cB.alignment = { horizontal: 'right' };
+        cF.alignment = { horizontal: 'right' };
+
+        [cA, cB, cE, cF].forEach(cell => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: GRAY_BORDER } },
+            bottom: { style: 'thin', color: { argb: GRAY_BORDER } },
+            left: { style: 'thin', color: { argb: GRAY_BORDER } },
+            right: { style: 'thin', color: { argb: GRAY_BORDER } }
+          };
+        });
+      }
+    });
+
+    // Daily Breakdown Table
+    const tableStartRow = 14;
+    summarySheet.getCell(`A${tableStartRow}`).value = '2. DAILY REVENUE & PRODUCTION BREAKDOWN';
+    summarySheet.getCell(`A${tableStartRow}`).font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: BRAND_BLUE } };
+
+    const dailyHeaders = [
+      'Date', 'Orders', 'B&W Jobs', 'Color Jobs', 'Pages Printed', 'Sheets Used', 'Print Rev (₹)', 'Binding Rev (₹)', 'Total Daily Rev (₹)'
+    ];
+
+    const dHeaderRow = summarySheet.getRow(tableStartRow + 1);
+    dHeaderRow.values = dailyHeaders;
+    dHeaderRow.height = 24;
+    dHeaderRow.eachCell((cell, colNum) => {
+      cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_HEADER } };
+      cell.alignment = { vertical: 'middle', horizontal: colNum === 1 ? 'center' : 'right' };
+      cell.border = {
+        top: { style: 'medium', color: { argb: NAVY_DARK } },
+        bottom: { style: 'medium', color: { argb: NAVY_DARK } }
+      };
+    });
+
+    const sortedDaily = Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date));
+    let curRow = tableStartRow + 2;
+
+    sortedDaily.forEach((d, idx) => {
+      const r = summarySheet.getRow(curRow);
+      r.values = [
+        d.date,
+        d.orders,
+        d.bwCount,
+        d.colorCount,
+        d.pages,
+        d.sheets,
+        d.printRev,
+        d.bindRev,
+        d.totalRev
+      ];
+      r.height = 19;
+
+      r.eachCell((cell, colNum) => {
+        cell.font = { name: 'Segoe UI', size: 9.5 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? GRAY_LIGHT : 'FFFFFFFF' } };
+        cell.border = {
+          top: { style: 'thin', color: { argb: GRAY_BORDER } },
+          bottom: { style: 'thin', color: { argb: GRAY_BORDER } },
+          left: { style: 'thin', color: { argb: GRAY_BORDER } },
+          right: { style: 'thin', color: { argb: GRAY_BORDER } }
+        };
+
+        if (colNum === 1) cell.alignment = { horizontal: 'center' };
+        else cell.alignment = { horizontal: 'right' };
+
+        if (colNum >= 2 && colNum <= 6) cell.numFmt = '#,##0';
+        if (colNum >= 7) cell.numFmt = '"₹"#,##0.00';
+      });
+      curRow++;
+    });
+
+    // Daily Total Row
+    const dailyTotalRow = summarySheet.getRow(curRow);
+    dailyTotalRow.height = 24;
+    dailyTotalRow.values = [
+      'TOTAL',
+      `=SUM(B${tableStartRow + 2}:B${curRow - 1})`,
+      `=SUM(C${tableStartRow + 2}:C${curRow - 1})`,
+      `=SUM(D${tableStartRow + 2}:D${curRow - 1})`,
+      `=SUM(E${tableStartRow + 2}:E${curRow - 1})`,
+      `=SUM(F${tableStartRow + 2}:F${curRow - 1})`,
+      `=SUM(G${tableStartRow + 2}:G${curRow - 1})`,
+      `=SUM(H${tableStartRow + 2}:H${curRow - 1})`,
+      `=SUM(I${tableStartRow + 2}:I${curRow - 1})`
+    ];
+    dailyTotalRow.eachCell((cell, colNum) => {
+      cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: NAVY_DARK } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: NAVY_DARK } },
+        bottom: { style: 'double', color: { argb: NAVY_DARK } }
+      };
+      if (colNum === 1) cell.alignment = { horizontal: 'center' };
+      else cell.alignment = { horizontal: 'right' };
+
+      if (colNum >= 2 && colNum <= 6) cell.numFmt = '#,##0';
+      if (colNum >= 7) cell.numFmt = '"₹"#,##0.00';
+    });
+
+    summarySheet.columns = [
+      { width: 16 }, // A
+      { width: 14 }, // B
+      { width: 14 }, // C
+      { width: 14 }, // D
+      { width: 16 }, // E
+      { width: 16 }, // F
+      { width: 16 }, // G
+      { width: 16 }, // H
+      { width: 20 }  // I
+    ];
+
+    // ─────────────────────────────────────────────────────────────
+    // SHEET 2: ITEMIZED ORDER-LEVEL TRANSACTIONS
+    // ─────────────────────────────────────────────────────────────
+    const txSheet = workbook.addWorksheet('💳 Itemized Transactions', {
+      views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
+    });
+
+    const txColumns = [
+      { header: 'Token #', key: 'token', width: 12 },
+      { header: 'Transaction / Razorpay ID', key: 'txId', width: 24 },
+      { header: 'Date', key: 'date', width: 13 },
+      { header: 'Time', key: 'time', width: 12 },
+      { header: 'Student Name', key: 'name', width: 22 },
+      { header: 'Register Number', key: 'regNo', width: 16 },
+      { header: 'Department', key: 'dept', width: 14 },
+      { header: 'Order Type', key: 'orderType', width: 14 },
+      { header: 'Document / File Name', key: 'file', width: 28 },
+      { header: 'Color Mode', key: 'color', width: 12 },
+      { header: 'Sides', key: 'sides', width: 14 },
+      { header: 'Page Size', key: 'size', width: 11 },
+      { header: 'Pages', key: 'pages', width: 9 },
+      { header: 'Copies', key: 'copies', width: 9 },
+      { header: 'Total Pages', key: 'totalPages', width: 13 },
+      { header: 'Sheets Used', key: 'sheets', width: 13 },
+      { header: 'Binding', key: 'binding', width: 12 },
+      { header: 'Binding Fee (₹)', key: 'bindFee', width: 15 },
+      { header: 'Print Fee (₹)', key: 'printFee', width: 15 },
+      { header: 'Total Amount (₹)', key: 'amount', width: 17 },
+      { header: 'Payment', key: 'payStatus', width: 12 },
+      { header: 'Fulfillment', key: 'status', width: 13 }
+    ];
+
+    txSheet.columns = txColumns;
+
+    // Header Styling
+    const txHeaderRow = txSheet.getRow(1);
+    txHeaderRow.height = 26;
+    txHeaderRow.eachCell((cell, colNum) => {
+      cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_HEADER } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'medium', color: { argb: NAVY_DARK } },
+        bottom: { style: 'medium', color: { argb: NAVY_DARK } }
+      };
+    });
+
+    orders.forEach((o, idx) => {
+      const pgs = o.pages || 1;
+      const cps = o.copies || 1;
+      const totPages = pgs * cps;
+      const sheets = (o.sides === 'double') ? Math.ceil(pgs / 2) * cps : totPages;
+
+      let bFee = 0;
+      if (o.binding === 'spiral') bFee = 20;
+      else if (o.binding === 'calico') bFee = 40;
+
+      const amt = o.amount || 0;
+      const pFee = Math.max(0, amt - bFee);
+
+      const dObj = o.createdAt ? new Date(o.createdAt) : null;
+      const dStr = dObj ? dObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A';
+      const tStr = dObj ? dObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true }) : 'N/A';
+
+      const row = txSheet.addRow({
+        token: o.tokenNumber ? `#${o.tokenNumber}` : 'N/A',
+        txId: o.razorpayPaymentId || o.razorpayOrderId || 'N/A',
+        date: dStr,
+        time: tStr,
+        name: o.studentName || 'Student',
+        regNo: o.registerNumber || 'N/A',
+        dept: o.department || 'N/A',
+        orderType: o.orderType === 'xerox' ? 'Physical Xerox' : 'Digital Upload',
+        file: o.fileName || (o.orderType === 'xerox' ? 'Direct Copy' : 'Document'),
+        color: o.colorMode === 'color' ? 'Color' : 'B&W',
+        sides: o.sides === 'double' ? 'Double Sided' : 'Single Sided',
+        size: o.pageSize || 'A4',
+        pages: pgs,
+        copies: cps,
+        totalPages: totPages,
+        sheets: sheets,
+        binding: o.binding && o.binding !== 'none' ? o.binding.toUpperCase() : 'None',
+        bindFee: bFee,
+        printFee: pFee,
+        amount: amt,
+        payStatus: (o.paymentStatus || 'paid').toUpperCase(),
+        status: (o.status || 'completed').toUpperCase()
+      });
+
+      row.height = 20;
+      const isAlt = idx % 2 === 0;
+
+      row.eachCell((cell, colNum) => {
+        cell.font = { name: 'Segoe UI', size: 9.5 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isAlt ? GRAY_LIGHT : 'FFFFFFFF' } };
+        cell.border = {
+          top: { style: 'thin', color: { argb: GRAY_BORDER } },
+          bottom: { style: 'thin', color: { argb: GRAY_BORDER } },
+          left: { style: 'thin', color: { argb: GRAY_BORDER } },
+          right: { style: 'thin', color: { argb: GRAY_BORDER } }
+        };
+
+        // Alignments & Number formats
+        if (colNum === 1 || colNum === 3 || colNum === 4 || colNum === 6 || colNum === 7 || colNum === 10 || colNum === 12 || colNum === 17 || colNum === 21 || colNum === 22) {
+          cell.alignment = { horizontal: 'center' };
+        } else if (colNum >= 13 && colNum <= 20) {
+          cell.alignment = { horizontal: 'right' };
+        } else {
+          cell.alignment = { horizontal: 'left' };
+        }
+
+        if (colNum >= 13 && colNum <= 16) cell.numFmt = '#,##0';
+        if (colNum >= 18 && colNum <= 20) cell.numFmt = '"₹"#,##0.00';
+      });
+    });
+
+    // Itemized Total Row
+    if (orders.length > 0) {
+      const lastTxRowNum = orders.length + 1;
+      const totalTxRow = txSheet.addRow({
+        token: 'TOTALS',
+        totalPages: `=SUM(O2:O${lastTxRowNum})`,
+        sheets: `=SUM(P2:P${lastTxRowNum})`,
+        bindFee: `=SUM(R2:R${lastTxRowNum})`,
+        printFee: `=SUM(S2:S${lastTxRowNum})`,
+        amount: `=SUM(T2:T${lastTxRowNum})`
+      });
+      totalTxRow.height = 24;
+      totalTxRow.eachCell((cell, colNum) => {
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: NAVY_DARK } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+        cell.border = {
+          top: { style: 'thin', color: { argb: NAVY_DARK } },
+          bottom: { style: 'double', color: { argb: NAVY_DARK } }
+        };
+        if (colNum >= 13 && colNum <= 16) cell.numFmt = '#,##0';
+        if (colNum >= 18 && colNum <= 20) cell.numFmt = '"₹"#,##0.00';
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SHEET 3: DEPARTMENT & CLIENT ANALYTICS
+    // ─────────────────────────────────────────────────────────────
+    const deptSheet = workbook.addWorksheet('🏛️ Department Analytics', {
+      views: [{ state: 'frozen', ySplit: 1, showGridLines: true }]
+    });
+
+    const deptColumns = [
+      { header: 'Department', key: 'dept', width: 22 },
+      { header: 'Total Orders', key: 'orders', width: 14 },
+      { header: 'Pages Printed', key: 'pages', width: 15 },
+      { header: 'B&W Revenue (₹)', key: 'bw', width: 18 },
+      { header: 'Color Revenue (₹)', key: 'color', width: 18 },
+      { header: 'Binding Revenue (₹)', key: 'bind', width: 18 },
+      { header: 'Total Revenue (₹)', key: 'total', width: 20 },
+      { header: 'Revenue Share', key: 'share', width: 16 }
+    ];
+
+    deptSheet.columns = deptColumns;
+    const deptHeaderRow = deptSheet.getRow(1);
+    deptHeaderRow.height = 26;
+    deptHeaderRow.eachCell((cell, colNum) => {
+      cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_HEADER } };
+      cell.alignment = { vertical: 'middle', horizontal: colNum === 1 ? 'left' : 'right' };
+      cell.border = {
+        top: { style: 'medium', color: { argb: NAVY_DARK } },
+        bottom: { style: 'medium', color: { argb: NAVY_DARK } }
+      };
+    });
+
+    const sortedDepts = Object.values(deptMap).sort((a, b) => b.totalRev - a.totalRev);
+    let deptRowNum = 2;
+
+    sortedDepts.forEach((dp, idx) => {
+      const share = totalRevenue > 0 ? (dp.totalRev / totalRevenue) : 0;
+      const r = deptSheet.addRow({
+        dept: dp.dept,
+        orders: dp.orders,
+        pages: dp.pages,
+        bw: dp.bwRev,
+        color: dp.colorRev,
+        bind: dp.bindRev,
+        total: dp.totalRev,
+        share: share
+      });
+      r.height = 20;
+
+      r.eachCell((cell, colNum) => {
+        cell.font = { name: 'Segoe UI', size: 9.5 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: idx % 2 === 0 ? GRAY_LIGHT : 'FFFFFFFF' } };
+        cell.border = {
+          top: { style: 'thin', color: { argb: GRAY_BORDER } },
+          bottom: { style: 'thin', color: { argb: GRAY_BORDER } },
+          left: { style: 'thin', color: { argb: GRAY_BORDER } },
+          right: { style: 'thin', color: { argb: GRAY_BORDER } }
+        };
+
+        if (colNum === 1) cell.alignment = { horizontal: 'left', indent: 1 };
+        else cell.alignment = { horizontal: 'right' };
+
+        if (colNum === 2 || colNum === 3) cell.numFmt = '#,##0';
+        if (colNum >= 4 && colNum <= 7) cell.numFmt = '"₹"#,##0.00';
+        if (colNum === 8) cell.numFmt = '0.0%';
+      });
+      deptRowNum++;
+    });
+
+    // Department Total Row
+    if (sortedDepts.length > 0) {
+      const deptTotalRow = deptSheet.addRow({
+        dept: 'TOTAL',
+        orders: `=SUM(B2:B${deptRowNum - 1})`,
+        pages: `=SUM(C2:C${deptRowNum - 1})`,
+        bw: `=SUM(D2:D${deptRowNum - 1})`,
+        color: `=SUM(E2:E${deptRowNum - 1})`,
+        bind: `=SUM(F2:F${deptRowNum - 1})`,
+        total: `=SUM(G2:G${deptRowNum - 1})`,
+        share: 1.0
+      });
+      deptTotalRow.height = 24;
+      deptTotalRow.eachCell((cell, colNum) => {
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: NAVY_DARK } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+        cell.border = {
+          top: { style: 'thin', color: { argb: NAVY_DARK } },
+          bottom: { style: 'double', color: { argb: NAVY_DARK } }
+        };
+        if (colNum === 1) cell.alignment = { horizontal: 'left', indent: 1 };
+        else cell.alignment = { horizontal: 'right' };
+
+        if (colNum === 2 || colNum === 3) cell.numFmt = '#,##0';
+        if (colNum >= 4 && colNum <= 7) cell.numFmt = '"₹"#,##0.00';
+        if (colNum === 8) cell.numFmt = '0.0%';
+      });
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Printsta_Financial_Audit_Report_${todayStr}.xlsx"`);
+    res.setHeader('Content-Length', buffer.length);
+    return res.send(buffer);
+
+  } catch (error) {
+    console.error("Export Earnings Excel Error:", error);
+    return res.status(500).json({ success: false, message: 'Failed to generate financial Excel report.' });
   }
 });
 

@@ -912,42 +912,83 @@
       renderEarningsHistoryTable(window.currentSortedData || currentFilteredData);
     }
 
-    // Excel Export (Generates real .xlsx file for presentation to college authorities)
-    function exportEarningsExcel() {
-      if (earningsHistory.length === 0) {
-        showAlert('No history data to export.', 'error');
+    // Excel Export (Generates real multi-sheet .xlsx audit file with full financial specifics)
+    async function exportEarningsExcel() {
+      const btn = document.querySelector('.btn-export-csv');
+      const originalText = btn ? btn.textContent : 'Export to Excel';
+      
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Generating Excel...';
+        }
+        showAlert('Compiling professional financial earnings report...', 'success');
+
+        const rangeSelect = document.getElementById('earningsDateRangeSelect') ? document.getElementById('earningsDateRangeSelect').value : 'all';
+        let queryParams = `range=${rangeSelect}`;
+
+        if (rangeSelect === 'custom') {
+          const fromVal = document.getElementById('pickerFrom').value;
+          const toVal = document.getElementById('pickerTo').value;
+          if (fromVal && toVal) {
+            queryParams = `from=${fromVal}&to=${toVal}`;
+          }
+        }
+
+        const res = await fetch(`${API_BASE}/admin/export-earnings-excel?${queryParams}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Server returned ' + res.status);
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const todayStr = new Date().toISOString().split('T')[0];
+        a.download = `Printsta_Financial_Audit_Report_${todayStr}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        showAlert('Official Earnings & Revenue Excel report downloaded!', 'success');
+      } catch (err) {
+        console.error('Failed to export backend Excel report, falling back:', err);
+        // Fallback to client-side multi-sheet export if offline
+        fallbackClientExport();
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      }
+    }
+
+    function fallbackClientExport() {
+      if (!earningsHistory || earningsHistory.length === 0) {
+        showAlert('No earnings data available to export.', 'error');
         return;
       }
 
-      // Convert array of history objects to format for Excel
-      const excelRows = earningsHistory.map(day => {
-        return {
-          "Date": day._id,
-          "Orders Processed": day.orderCount,
-          "Total Revenue (INR)": day.totalEarnings
-        };
-      });
+      const excelRows = earningsHistory.map(day => ({
+        "Date": day._id,
+        "Orders Processed": day.orderCount,
+        "Total Revenue (INR)": day.totalEarnings
+      }));
 
-      // Create Worksheet and set custom styles/auto column widths
       const worksheet = XLSX.utils.json_to_sheet(excelRows);
-
-      // Standard styling layout options
-      const colWidths = [
-        { wch: 15 }, // Date
-        { wch: 20 }, // Orders Processed
-        { wch: 22 }  // Total Revenue
-      ];
-      worksheet['!cols'] = colWidths;
-
-      // Create Workbook
+      worksheet['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 22 }];
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Earnings Report");
-
-      // Generate file and download
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Earnings Summary");
       const todayStr = new Date().toISOString().split('T')[0];
       XLSX.writeFile(workbook, `Printsta_Earnings_Report_${todayStr}.xlsx`);
-      
-      showAlert('Excel report downloaded successfully!', 'success');
+      showAlert('Basic earnings report downloaded.', 'success');
     }
 
     // Initialization
