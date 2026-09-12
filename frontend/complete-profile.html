@@ -183,17 +183,43 @@
         '106': 'ECE', '243': 'AIDS'
       };
 
-      function validateRegNum(reg) {
-        if (reg.length !== 12)       return { valid: false, error: 'Register number must be exactly 12 digits.' };
-        if (!/^\d{12}$/.test(reg))   return { valid: false, error: 'Register number must contain digits only.' };
-        if (!reg.startsWith('7228')) return { valid: false, error: 'First 4 digits must be 7228 (SECE college code).' };
-        const deptCode = reg.substring(6, 9);
-        if (!REG_DEPT_CODES[deptCode]) return { valid: false, error: `Dept code "${deptCode}" is not valid. Valid: IT-205, ECE-106, CSE-251, AIML-148, AIDS-243, EEE-105, MECH-114, CSBS-244, CCE-134, CYBER-149.` };
-        return { valid: true, dept: REG_DEPT_CODES[deptCode] };
+      const ROLL_DEPT_CODES = {
+        'ECE': 'ECE', 'EC': 'ECE', 'CSE': 'CSE', 'CS': 'CSE',
+        'IT': 'IT', 'AIDS': 'AIDS', 'AI': 'AIDS', 'AIML': 'AIML', 'ML': 'AIML',
+        'EEE': 'EEE', 'EE': 'EEE', 'MECH': 'MECH', 'ME': 'MECH',
+        'CSBS': 'CSBS', 'CB': 'CSBS', 'CCE': 'CCE', 'CC': 'CCE',
+        'CYS': 'CYBER', 'CY': 'CYBER'
+      };
+
+      function validateRegNum(rawReg) {
+        const reg = (rawReg || '').trim().toUpperCase();
+        if (!reg) return { valid: false, error: 'Register number is required.' };
+        if (reg.length < 6 || reg.length > 20) {
+          return { valid: false, error: 'Register / Roll number must be between 6 and 20 characters.' };
+        }
+        if (!/^[A-Z0-9]+$/i.test(reg)) {
+          return { valid: false, error: 'Register number must contain letters and numbers only.' };
+        }
+
+        // 1. Anna University 12-digit format
+        if (/^\d{12}$/.test(reg) && reg.startsWith('7228')) {
+          const deptCode = reg.substring(6, 9);
+          const dept = REG_DEPT_CODES[deptCode];
+          if (dept) return { valid: true, dept };
+        }
+
+        // 2. Roll / Admission Number format
+        const rollMatch = reg.match(/^(\d{2})(?:BE|BTECH)?(?:ADM|LAT)?(ECE|EC|CSE|CS|AIDS|AIML|AI|EEE|EE|MECH|ME|CSBS|CB|CCE|CC|CYS|CY)(\d{1,4})$/);
+        if (rollMatch) {
+          const dept = ROLL_DEPT_CODES[rollMatch[2]] || 'ECE';
+          return { valid: true, dept };
+        }
+
+        return { valid: true, dept: null };
       }
 
       function onRegNumInput() {
-        const reg = document.getElementById('registerNumber').value.trim();
+        const reg = document.getElementById('registerNumber').value.trim().toUpperCase();
         const fb  = document.getElementById('regNumFeedback');
         if (!reg) { fb.textContent = ''; return; }
         const result = validateRegNum(reg);
@@ -201,7 +227,7 @@
           fb.textContent = result.error;
           fb.style.color = '#ef4444';
         } else {
-          fb.textContent = `✓ Dept: ${result.dept}`;
+          fb.textContent = result.dept ? `✓ Dept: ${result.dept}` : '✓ Valid Register / Roll Number';
           fb.style.color = '#16a34a';
         }
       }

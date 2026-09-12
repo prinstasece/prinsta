@@ -131,9 +131,9 @@
 
         <!-- Row 3: Register Number -->
         <div class="form-group">
-          <label for="registerNumber">Register Number <span style="color:#64748b;font-weight:400;font-size:0.8rem;">(12 digits, e.g. 722825106001)</span></label>
+          <label for="registerNumber">Register / Roll Number <span style="color:#64748b;font-weight:400;font-size:0.8rem;">(e.g. 722825106001 or 25BEADMEC145)</span></label>
           <div class="input-wrapper">
-            <input type="text" id="registerNumber" placeholder="7228YYDDDNNN (12 digits)" maxlength="12" required autocomplete="off" oninput="onRegNumInput()">
+            <input type="text" id="registerNumber" placeholder="722825106001 or 25BEADMEC145" maxlength="20" required autocomplete="off" oninput="onRegNumInput()" style="text-transform: uppercase;">
           </div>
           <div id="regNumFeedback" style="font-size:0.8rem;font-weight:600;margin-top:4px;min-height:18px;"></div>
         </div>
@@ -302,22 +302,50 @@
 
     // Maps register dept value to the department select option values
     const REG_DEPT_TO_SELECT = {
-      'IT': 'IT', 'CYBER': 'Cyber Security', 'AIML': 'AIML',
-      'CSE': 'CSE', 'EEE': 'EEE', 'MECH': 'MECH',
-      'CSBS': 'CSBS', 'CCE': 'CCE', 'ECE': 'ECE', 'AIDS': 'AIDS'
+    const ROLL_DEPT_CODES = {
+      'ECE': 'ECE', 'EC': 'ECE',
+      'CSE': 'CSE', 'CS': 'CSE',
+      'IT': 'IT',
+      'AIDS': 'AIDS', 'AI': 'AIDS',
+      'AIML': 'AIML', 'ML': 'AIML',
+      'EEE': 'EEE', 'EE': 'EEE',
+      'MECH': 'MECH', 'ME': 'MECH',
+      'CSBS': 'CSBS', 'CB': 'CSBS',
+      'CCE': 'CCE', 'CC': 'CCE',
+      'CYS': 'CYBER', 'CY': 'CYBER'
     };
 
-    function validateRegNum(reg) {
-      if (reg.length !== 12)          return { valid: false, error: 'Register number must be exactly 12 digits.' };
-      if (!/^\d{12}$/.test(reg))      return { valid: false, error: 'Register number must contain digits only.' };
-      if (!reg.startsWith('7228'))    return { valid: false, error: 'First 4 digits must be 7228 (SECE college code).' };
-      const deptCode = reg.substring(6, 9);
-      if (!REG_DEPT_CODES[deptCode])  return { valid: false, error: `Dept code "${deptCode}" is not valid. Valid codes: IT-205, ECE-106, CSE-251, AIML-148, AIDS-243, EEE-105, MECH-114, CSBS-244, CCE-134, CYBER-149.` };
-      return { valid: true, dept: REG_DEPT_CODES[deptCode], deptCode };
+    function validateRegNum(rawReg) {
+      const reg = (rawReg || '').trim().toUpperCase();
+      if (!reg) return { valid: false, error: 'Register number is required.' };
+      if (reg.length < 6 || reg.length > 20) {
+        return { valid: false, error: 'Register / Roll number must be between 6 and 20 characters.' };
+      }
+      if (!/^[A-Z0-9]+$/i.test(reg)) {
+        return { valid: false, error: 'Register number must contain letters and numbers only.' };
+      }
+
+      // 1. Anna University 12-digit format: 7228YYDDDNNN
+      if (/^\d{12}$/.test(reg) && reg.startsWith('7228')) {
+        const deptCode = reg.substring(6, 9);
+        const dept = REG_DEPT_CODES[deptCode];
+        if (dept) return { valid: true, dept, deptCode, type: 'anna_univ' };
+      }
+
+      // 2. Roll / Admission Number format: e.g. 25BEADMEC145, 25BEEC145, 24BECSE010
+      const rollMatch = reg.match(/^(\d{2})(?:BE|BTECH)?(?:ADM|LAT)?(ECE|EC|CSE|CS|AIDS|AIML|AI|EEE|EE|MECH|ME|CSBS|CB|CCE|CC|CYS|CY)(\d{1,4})$/);
+      if (rollMatch) {
+        const deptKey = rollMatch[2];
+        const dept = ROLL_DEPT_CODES[deptKey] || 'ECE';
+        return { valid: true, dept, yearPrefix: rollMatch[1], type: 'college_roll' };
+      }
+
+      // 3. Fallback: Any valid alphanumeric roll number (at least 6 chars)
+      return { valid: true, dept: null, type: 'generic' };
     }
 
     function onRegNumInput() {
-      const reg = document.getElementById('registerNumber').value.trim();
+      const reg = document.getElementById('registerNumber').value.trim().toUpperCase();
       const fb  = document.getElementById('regNumFeedback');
       if (!reg) { fb.textContent = ''; return; }
       const result = validateRegNum(reg);
@@ -325,24 +353,30 @@
         fb.textContent = result.error;
         fb.style.color = '#ef4444';
       } else {
-        fb.textContent = `✓ Dept detected: ${result.dept}`;
-        fb.style.color = '#16a34a';
-        // Auto-fill department dropdown
-        const selectVal = REG_DEPT_TO_SELECT[result.dept];
-        if (selectVal) document.getElementById('department').value = selectVal;
+        if (result.dept) {
+          fb.textContent = `✓ Dept detected: ${result.dept}`;
+          fb.style.color = '#16a34a';
+          const selectVal = REG_DEPT_TO_SELECT[result.dept];
+          if (selectVal) document.getElementById('department').value = selectVal;
+        } else {
+          fb.textContent = `✓ Valid Register / Roll Number`;
+          fb.style.color = '#16a34a';
+        }
 
-        // Auto-fill batch dropdown
-        if (reg.length >= 6) {
-          const yearJoinedDigits = reg.substring(4, 6);
-          const year = parseInt(yearJoinedDigits);
-          if (!isNaN(year)) {
-            const startYear = 2000 + year;
-            const calculatedBatch = `${startYear}-${startYear + 4}`;
-            const batchSelect = document.getElementById('batch');
-            const hasOption = Array.from(batchSelect.options).some(opt => opt.value === calculatedBatch);
-            if (hasOption) {
-              batchSelect.value = calculatedBatch;
-            }
+        // Auto-detect batch from leading 2 digits or 7228YY
+        let yearNum = null;
+        if (/^\d{12}$/.test(reg) && reg.startsWith('7228')) {
+          yearNum = parseInt(reg.substring(4, 6));
+        } else if (/^\d{2}/.test(reg)) {
+          yearNum = parseInt(reg.substring(0, 2));
+        }
+
+        if (yearNum && !isNaN(yearNum)) {
+          const startYear = 2000 + yearNum;
+          const calculatedBatch = `${startYear}-${startYear + 4}`;
+          const batchSelect = document.getElementById('batch');
+          if (Array.from(batchSelect.options).some(opt => opt.value === calculatedBatch)) {
+            batchSelect.value = calculatedBatch;
           }
         }
       }

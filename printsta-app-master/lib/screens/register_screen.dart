@@ -51,6 +51,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     '243': 'AIDS'
   };
 
+  final Map<String, String> _rollDeptCodes = {
+    'ECE': 'ECE', 'EC': 'ECE',
+    'CSE': 'CSE', 'CS': 'CSE',
+    'IT': 'IT',
+    'AIDS': 'AIDS', 'AI': 'AIDS',
+    'AIML': 'AIML', 'ML': 'AIML',
+    'EEE': 'EEE', 'EE': 'EEE',
+    'MECH': 'MECH', 'ME': 'MECH',
+    'CSBS': 'CSBS', 'CB': 'CSBS',
+    'CCE': 'CCE', 'CC': 'CCE',
+    'CYS': 'Cyber Security', 'CY': 'Cyber Security'
+  };
+
   final Map<String, String> _emailDeptCodes = {
     'ece': 'ECE', 'cse': 'CSE', 'mech': 'MECH', 'eee': 'EEE',
     'cys': 'Cyber Security', 'aiml': 'AIML', 'aids': 'AIDS',
@@ -76,56 +89,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _onRegNoChanged() {
-    final reg = _regNoCtrl.text.trim();
+    final reg = _regNoCtrl.text.trim().toUpperCase();
     if (reg.isEmpty) {
       setState(() => _regNoFeedback = null);
       return;
     }
-    if (reg.length != 12) {
+    if (reg.length < 6 || reg.length > 20) {
       setState(() {
-        _regNoFeedback = 'Register number must be exactly 12 digits.';
+        _regNoFeedback = 'Register / Roll number must be 6 to 20 characters.';
         _regNoFeedbackColor = AppColors.error;
       });
       return;
     }
-    if (!RegExp(r'^\d{12}$').hasMatch(reg)) {
-      setState(() {
-        _regNoFeedback = 'Register number must contain digits only.';
-        _regNoFeedbackColor = AppColors.error;
-      });
-      return;
-    }
-    if (!reg.startsWith('7228')) {
-      setState(() {
-        _regNoFeedback = 'First 4 digits must be 7228 (SECE code).';
-        _regNoFeedbackColor = AppColors.error;
-      });
-      return;
-    }
-    final deptCode = reg.substring(6, 9);
-    final dept = _regDeptCodes[deptCode];
-    if (dept == null) {
-      setState(() {
-        _regNoFeedback = 'Dept code "$deptCode" is not valid.';
-        _regNoFeedbackColor = AppColors.error;
-      });
-    } else {
+
+    // 1. Anna University 12-digit format
+    if (RegExp(r'^\d{12}$').hasMatch(reg) && reg.startsWith('7228')) {
+      final deptCode = reg.substring(6, 9);
+      final dept = _regDeptCodes[deptCode];
       final yearJoinedDigits = reg.substring(4, 6);
       final year = int.tryParse(yearJoinedDigits);
       String? calculatedBatch;
-      if (year != null) {
-        calculatedBatch = "20$year-20${year + 4}";
-      }
+      if (year != null) calculatedBatch = "20$year-20${year + 4}";
       setState(() {
-        _regNoFeedback = null;
-        if (_departments.contains(dept)) {
-          _department = dept;
-        }
-        if (calculatedBatch != null && _batches.contains(calculatedBatch)) {
-          _batch = calculatedBatch;
-        }
+        _regNoFeedback = dept != null ? '✓ Dept detected: $dept' : null;
+        _regNoFeedbackColor = AppColors.success;
+        if (dept != null && _departments.contains(dept)) _department = dept;
+        if (calculatedBatch != null && _batches.contains(calculatedBatch)) _batch = calculatedBatch;
       });
+      return;
     }
+
+    // 2. Roll / Admission Number format: e.g. 25BEADMEC145, 25BEEC145
+    final rollMatch = RegExp(r'^(\d{2})(?:BE|BTECH)?(?:ADM|LAT)?(ECE|EC|CSE|CS|AIDS|AIML|AI|EEE|EE|MECH|ME|CSBS|CB|CCE|CC|CYS|CY)(\d{1,4})$').firstMatch(reg);
+    if (rollMatch != null) {
+      final yearPrefix = rollMatch.group(1);
+      final deptCode = rollMatch.group(2);
+      final dept = deptCode != null ? _rollDeptCodes[deptCode] : null;
+      final year = int.tryParse(yearPrefix ?? '');
+      String? calculatedBatch;
+      if (year != null) calculatedBatch = "20$year-20${year + 4}";
+      setState(() {
+        _regNoFeedback = dept != null ? '✓ Dept detected: $dept' : '✓ Valid Roll Number';
+        _regNoFeedbackColor = AppColors.success;
+        if (dept != null && _departments.contains(dept)) _department = dept;
+        if (calculatedBatch != null && _batches.contains(calculatedBatch)) _batch = calculatedBatch;
+      });
+      return;
+    }
+
+    // 3. Generic valid format
+    setState(() {
+      _regNoFeedback = '✓ Valid Register / Roll Number';
+      _regNoFeedbackColor = AppColors.success;
+    });
   }
 
   void _onEmailChanged() {

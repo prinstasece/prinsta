@@ -1,3 +1,7 @@
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 const path = require('path');
@@ -5,7 +9,7 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;
+const EMAIL_APP_PASSWORD = (process.env.EMAIL_APP_PASSWORD || '').trim().replace(/\s/g, '');
 
 console.log("Testing Nodemailer transport configs for:", EMAIL_USER);
 
