@@ -452,6 +452,11 @@
           }
         } else {
           showAlert(data.message || 'Invalid credentials.', 'error');
+          if (data.requiresVerification && data.email) {
+            setTimeout(() => {
+              window.location.href = `register.html?verifyEmail=${encodeURIComponent(data.email)}`;
+            }, 2500);
+          }
         }
       } catch (err) {
         console.error(err);

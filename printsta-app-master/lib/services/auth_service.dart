@@ -47,7 +47,12 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
         return {'success': true};
       }
-      return {'success': false, 'message': data['message'] ?? 'Login failed'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Login failed',
+        'requiresVerification': data['requiresVerification'] == true,
+        'email': data['email']
+      };
     } catch (e) {
       return {'success': false, 'message': 'Cannot connect to server. Make sure backend is running.'};
     }
@@ -230,9 +235,23 @@ class AuthService extends ChangeNotifier {
   Future<Map<String, dynamic>> verifyEmailRegister(String email, String otp) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/auth/student/verify-email'),
+        Uri.parse(ApiConstants.studentVerifyEmail),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'otp': otp}),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+      return data;
+    } catch (e) {
+      return {'success': false, 'message': 'Cannot connect to server.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> resendVerificationOtp(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConstants.studentResendVerification),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
       ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
       return data;

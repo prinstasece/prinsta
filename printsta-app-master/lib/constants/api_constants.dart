@@ -11,6 +11,8 @@ class ApiConstants {
   static String get verifyOtp => '$baseUrl/auth/verify-reset-otp';
   static String get resetPassword => '$baseUrl/auth/reset-password';
   static String get studentEmails => '$baseUrl/auth/student/emails';
+  static String get studentVerifyEmail => '$baseUrl/auth/student/verify-email';
+  static String get studentResendVerification => '$baseUrl/auth/student/resend-verification';
 
   // Orders
   static String get upload => '$baseUrl/upload';

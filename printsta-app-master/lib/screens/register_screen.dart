@@ -199,10 +199,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful! Please login.')),
-      );
-      Navigator.pop(context);
+      _showVerificationDialog(_emailCtrl.text.trim());
     } else {
       setState(() => _error = result['message'] ?? 'Registration failed.');
     }
@@ -245,6 +242,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     decoration: const InputDecoration(
                       counterText: '',
                       labelText: 'OTP Code',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: dialogLoading ? null : () async {
+                        setDialogState(() {
+                          dialogLoading = true;
+                          dialogError = null;
+                        });
+                        final res = await context.read<AuthService>().resendVerificationOtp(email);
+                        setDialogState(() {
+                          dialogLoading = false;
+                          if (res['success'] == true) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('New verification OTP sent to your email.')),
+                            );
+                          } else {
+                            dialogError = res['message'] ?? 'Failed to resend OTP.';
+                          }
+                        });
+                      },
+                      child: const Text('Resend OTP', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

@@ -90,7 +90,10 @@ if (EMAIL_USER && EMAIL_APP_PASSWORD) {
     tls: { 
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2'
-    }
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000
   });
   
   // Verify the transporter connection on startup
@@ -699,48 +702,109 @@ app.post('/auth/student/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Only SECE college email addresses (@sece.ac.in) are allowed to register.' });
     }
 
+    const emailLower = email.toLowerCase().trim();
+    const regClean = (registerNumber || '').trim().toUpperCase();
+
+    // Generate 6-digit OTP and 15-minute expiry
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     if (dbConnected) {
       // MongoDB Flow
-      const emailExists = await Student.findOne({ email });
-      if (emailExists) return res.status(400).json({ success: false, message: 'Email already registered.' });
+      const existingStudent = await Student.findOne({ email: emailLower });
+      if (existingStudent && existingStudent.isVerified) {
+        return res.status(400).json({ success: false, message: 'Email is already registered. Please login.' });
+      }
 
-      const regExists = await Student.findOne({ registerNumber });
-      if (regExists) return res.status(400).json({ success: false, message: 'Register number already registered.' });
+      if (regClean) {
+        const regExists = await Student.findOne({ registerNumber: regClean });
+        if (regExists && regExists.isVerified && regExists.email !== emailLower) {
+          return res.status(400).json({ success: false, message: 'Register number already registered to another account.' });
+        }
+      }
 
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      const student = new Student({
-        firstName, lastName, email, phone, password: hashedPassword, registerNumber, department, batch,
-        isVerified: true,
-        verificationOtp: null,
-        verificationOtpExpiry: null
-      });
-      await student.save();
+      if (existingStudent && !existingStudent.isVerified) {
+        // Update existing unverified registration with new details and fresh OTP
+        existingStudent.firstName = firstName;
+        existingStudent.lastName = lastName;
+        existingStudent.phone = phone || "N/A";
+        existingStudent.password = hashedPassword;
+        existingStudent.registerNumber = regClean;
+        existingStudent.department = department || "";
+        existingStudent.batch = batch || "";
+        existingStudent.verificationOtp = otp;
+        existingStudent.verificationOtpExpiry = otpExpiry;
+        await existingStudent.save();
+      } else {
+        const student = new Student({
+          firstName,
+          lastName,
+          email: emailLower,
+          phone: phone || "N/A",
+          password: hashedPassword,
+          registerNumber: regClean,
+          department: department || "",
+          batch: batch || "",
+          isVerified: false,
+          verificationOtp: otp,
+          verificationOtpExpiry: otpExpiry
+        });
+        await student.save();
+      }
     } else {
       // In-Memory Flow
-      console.log(`[Offline Mode] Registering student: ${email}`);
-      const emailExists = inMemoryStudents.find(s => s.email === email);
-      if (emailExists) return res.status(400).json({ success: false, message: 'Email already registered.' });
+      console.log(`[Offline Mode] Registering student: ${emailLower}`);
+      const existingStudent = inMemoryStudents.find(s => s.email && s.email.toLowerCase() === emailLower);
+      if (existingStudent && existingStudent.isVerified) {
+        return res.status(400).json({ success: false, message: 'Email is already registered. Please login.' });
+      }
 
-      const regExists = inMemoryStudents.find(s => s.registerNumber === registerNumber);
-      if (regExists) return res.status(400).json({ success: false, message: 'Register number already registered.' });
+      if (regClean) {
+        const regExists = inMemoryStudents.find(s => s.registerNumber && s.registerNumber.toUpperCase() === regClean);
+        if (regExists && regExists.isVerified && regExists.email !== emailLower) {
+          return res.status(400).json({ success: false, message: 'Register number already registered.' });
+        }
+      }
 
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      inMemoryStudents.push({
-        _id: 'mem_std_' + Date.now(),
-        firstName, lastName, email, phone, password: hashedPassword, registerNumber, department, batch,
-        pushSubscription: null,
-        isVerified: true,
-        verificationOtp: null,
-        verificationOtpExpiry: null,
-        createdAt: new Date()
-      });
+      if (existingStudent && !existingStudent.isVerified) {
+        existingStudent.firstName = firstName;
+        existingStudent.lastName = lastName;
+        existingStudent.phone = phone || "N/A";
+        existingStudent.password = hashedPassword;
+        existingStudent.registerNumber = regClean;
+        existingStudent.department = department || "";
+        existingStudent.batch = batch || "";
+        existingStudent.verificationOtp = otp;
+        existingStudent.verificationOtpExpiry = otpExpiry;
+      } else {
+        inMemoryStudents.push({
+          _id: 'mem_std_' + Date.now(),
+          firstName, lastName, email: emailLower, phone: phone || "N/A", password: hashedPassword,
+          registerNumber: regClean, department: department || "", batch: batch || "",
+          pushSubscription: null,
+          isVerified: false,
+          verificationOtp: otp,
+          verificationOtpExpiry: otpExpiry,
+          createdAt: new Date()
+        });
+      }
     }
 
-    return res.status(201).json({ success: true, message: 'Registration successful.' });
+    // Send OTP email to the student's college email
+    try {
+      await sendVerificationEmail(emailLower, otp);
+    } catch (mailErr) {
+      console.error('[EMAIL ERROR] Failed to send registration verification email:', mailErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      requiresVerification: true,
+      email: emailLower,
+      message: `A verification OTP has been sent to ${emailLower}. Please enter it to complete registration.`
+    });
   } catch (error) {
     console.error("Register Error:", error);
     return res.status(500).json({ success: false, message: 'Server processing error.' });
@@ -758,7 +822,7 @@ app.post('/auth/student/verify-email', async (req, res) => {
     if (dbConnected) {
       student = await Student.findOne({ email: emailLower });
     } else {
-      student = inMemoryStudents.find(s => s.email === emailLower);
+      student = inMemoryStudents.find(s => s.email && s.email.toLowerCase() === emailLower);
     }
 
     if (!student) {
@@ -770,11 +834,11 @@ app.post('/auth/student/verify-email', async (req, res) => {
     }
 
     if (!student.verificationOtp || student.verificationOtp !== otp.trim()) {
-      return res.status(400).json({ success: false, message: 'Invalid verification OTP.' });
+      return res.status(400).json({ success: false, message: 'Invalid verification OTP. Please check the code sent to your email.' });
     }
 
     if (!student.verificationOtpExpiry || new Date() > new Date(student.verificationOtpExpiry)) {
-      return res.status(400).json({ success: false, message: 'Verification OTP has expired. Please register again.' });
+      return res.status(400).json({ success: false, message: 'Verification OTP has expired. Please request a new OTP.' });
     }
 
     student.isVerified = true;
@@ -783,10 +847,57 @@ app.post('/auth/student/verify-email', async (req, res) => {
     if (dbConnected) {
       await student.save();
     }
-    return res.status(200).json({ success: true, message: 'Email verified successfully. You can now login.' });
+    return res.status(200).json({ success: true, message: 'Email verified successfully! You can now login.' });
   } catch (error) {
     console.error('Verify Email Error:', error);
     return res.status(500).json({ success: false, message: 'Server processing error during verification.' });
+  }
+});
+
+// Resend Student Email Verification OTP
+app.post('/auth/student/resend-verification', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
+  const emailLower = email.toLowerCase().trim();
+
+  try {
+    let student = null;
+    if (dbConnected) {
+      student = await Student.findOne({ email: emailLower });
+    } else {
+      student = inMemoryStudents.find(s => s.email && s.email.toLowerCase() === emailLower);
+    }
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student account not found.' });
+    }
+
+    if (student.isVerified) {
+      return res.status(400).json({ success: false, message: 'Account is already verified. You can log in directly.' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
+    student.verificationOtp = otp;
+    student.verificationOtpExpiry = otpExpiry;
+
+    if (dbConnected) {
+      await student.save();
+    }
+
+    try {
+      await sendVerificationEmail(emailLower, otp);
+    } catch (mailErr) {
+      console.error('[EMAIL ERROR] Failed to resend verification email:', mailErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `A new verification OTP has been sent to ${emailLower}.`
+    });
+  } catch (error) {
+    console.error('Resend Verification Error:', error);
+    return res.status(500).json({ success: false, message: 'Server processing error.' });
   }
 });
 
@@ -824,9 +935,14 @@ app.post('/auth/student/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    // if (student.isVerified === false) {
-    //   return res.status(400).json({ success: false, message: 'Please verify your email address first.' });
-    // }
+    if (student.isVerified === false) {
+      return res.status(400).json({
+        success: false,
+        requiresVerification: true,
+        email: student.email,
+        message: 'Please verify your college email with the OTP sent to your email.'
+      });
+    }
 
     const token = jwt.sign(
       { id: student._id, name: `${student.firstName} ${student.lastName}`, email: student.email, role: 'student' },
@@ -873,9 +989,14 @@ app.post('/auth/login', async (req, res) => {
     if (student) {
       const valid = await bcrypt.compare(password, student.password);
       if (valid) {
-        // if (student.isVerified === false) {
-        //   return res.status(400).json({ success: false, message: 'Please verify your email address first.' });
-        // }
+        if (student.isVerified === false) {
+          return res.status(400).json({
+            success: false,
+            requiresVerification: true,
+            email: student.email,
+            message: 'Please verify your college email with the OTP sent to your email.'
+          });
+        }
         const token = jwt.sign(
           { id: student._id, name: `${student.firstName} ${student.lastName}`, email: student.email, role: 'student' },
           STUDENT_JWT_SECRET, { expiresIn: '7d' }
@@ -1573,13 +1694,18 @@ async function sendVerificationEmail(toEmail, otp) {
   `;
   if (emailTransporter) {
     console.log(`[EMAIL] Sending verification email to ${toEmail}...`);
-    const info = await emailTransporter.sendMail({
-      from: `"Printsta SECE" <${EMAIL_USER}>`,
-      to: toEmail,
-      subject: 'Printsta — Registration Verification OTP',
-      html
-    });
-    console.log(`[EMAIL] Verification email sent successfully to ${toEmail}. Message ID: ${info.messageId}`);
+    try {
+      const info = await emailTransporter.sendMail({
+        from: `"Printsta SECE" <${EMAIL_USER}>`,
+        to: toEmail,
+        subject: 'Printsta — Registration Verification OTP',
+        html
+      });
+      console.log(`[EMAIL] Verification email sent successfully to ${toEmail}. Message ID: ${info.messageId}`);
+    } catch (sendErr) {
+      console.error(`[EMAIL ERROR] Failed to deliver verification email to ${toEmail}:`, sendErr.message);
+      console.log(`[FALLBACK LOG] Registration Verification OTP for ${toEmail}: ${otp}`);
+    }
   } else {
     console.log(`[DEV] Registration Verification OTP for ${toEmail}: ${otp}`);
   }

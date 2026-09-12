@@ -285,6 +285,69 @@
       emailFeedback.className = 'email-feedback';
     });
 
+    // ── Register Number Validation ──
+    // Format: 7228 (college) + 2-digit year + 3-digit dept code + 3-digit serial = 12 digits
+    const REG_DEPT_CODES = {
+      '205': 'IT',
+      '149': 'CYBER',
+      '148': 'AIML',
+      '251': 'CSE',
+      '105': 'EEE',
+      '114': 'MECH',
+      '244': 'CSBS',
+      '134': 'CCE',
+      '106': 'ECE',
+      '243': 'AIDS'
+    };
+
+    // Maps register dept value to the department select option values
+    const REG_DEPT_TO_SELECT = {
+      'IT': 'IT', 'CYBER': 'Cyber Security', 'AIML': 'AIML',
+      'CSE': 'CSE', 'EEE': 'EEE', 'MECH': 'MECH',
+      'CSBS': 'CSBS', 'CCE': 'CCE', 'ECE': 'ECE', 'AIDS': 'AIDS'
+    };
+
+    function validateRegNum(reg) {
+      if (reg.length !== 12)          return { valid: false, error: 'Register number must be exactly 12 digits.' };
+      if (!/^\d{12}$/.test(reg))      return { valid: false, error: 'Register number must contain digits only.' };
+      if (!reg.startsWith('7228'))    return { valid: false, error: 'First 4 digits must be 7228 (SECE college code).' };
+      const deptCode = reg.substring(6, 9);
+      if (!REG_DEPT_CODES[deptCode])  return { valid: false, error: `Dept code "${deptCode}" is not valid. Valid codes: IT-205, ECE-106, CSE-251, AIML-148, AIDS-243, EEE-105, MECH-114, CSBS-244, CCE-134, CYBER-149.` };
+      return { valid: true, dept: REG_DEPT_CODES[deptCode], deptCode };
+    }
+
+    function onRegNumInput() {
+      const reg = document.getElementById('registerNumber').value.trim();
+      const fb  = document.getElementById('regNumFeedback');
+      if (!reg) { fb.textContent = ''; return; }
+      const result = validateRegNum(reg);
+      if (!result.valid) {
+        fb.textContent = result.error;
+        fb.style.color = '#ef4444';
+      } else {
+        fb.textContent = `✓ Dept detected: ${result.dept}`;
+        fb.style.color = '#16a34a';
+        // Auto-fill department dropdown
+        const selectVal = REG_DEPT_TO_SELECT[result.dept];
+        if (selectVal) document.getElementById('department').value = selectVal;
+
+        // Auto-fill batch dropdown
+        if (reg.length >= 6) {
+          const yearJoinedDigits = reg.substring(4, 6);
+          const year = parseInt(yearJoinedDigits);
+          if (!isNaN(year)) {
+            const startYear = 2000 + year;
+            const calculatedBatch = `${startYear}-${startYear + 4}`;
+            const batchSelect = document.getElementById('batch');
+            const hasOption = Array.from(batchSelect.options).some(opt => opt.value === calculatedBatch);
+            if (hasOption) {
+              batchSelect.value = calculatedBatch;
+            }
+          }
+        }
+      }
+    }
+
     // ── Form Submit ──
     const registerForm = document.getElementById('registerForm');
 
@@ -300,69 +363,6 @@
       const registerNumber = document.getElementById('registerNumber').value.trim();
       const department     = document.getElementById('department').value;
       const batch          = document.getElementById('batch').value;
-
-      // ── Register Number Validation ──
-      // Format: 7228 (college) + 2-digit year + 3-digit dept code + 3-digit serial = 12 digits
-      const REG_DEPT_CODES = {
-        '205': 'IT',
-        '149': 'CYBER',
-        '148': 'AIML',
-        '251': 'CSE',
-        '105': 'EEE',
-        '114': 'MECH',
-        '244': 'CSBS',
-        '134': 'CCE',
-        '106': 'ECE',
-        '243': 'AIDS'
-      };
-
-      // Maps register dept value to the department select option values
-      const REG_DEPT_TO_SELECT = {
-        'IT': 'IT', 'CYBER': 'Cyber Security', 'AIML': 'AIML',
-        'CSE': 'CSE', 'EEE': 'EEE', 'MECH': 'MECH',
-        'CSBS': 'CSBS', 'CCE': 'CCE', 'ECE': 'ECE', 'AIDS': 'AIDS'
-      };
-
-      function validateRegNum(reg) {
-        if (reg.length !== 12)          return { valid: false, error: 'Register number must be exactly 12 digits.' };
-        if (!/^\d{12}$/.test(reg))      return { valid: false, error: 'Register number must contain digits only.' };
-        if (!reg.startsWith('7228'))    return { valid: false, error: 'First 4 digits must be 7228 (SECE college code).' };
-        const deptCode = reg.substring(6, 9);
-        if (!REG_DEPT_CODES[deptCode])  return { valid: false, error: `Dept code "${deptCode}" is not valid. Valid codes: IT-205, ECE-106, CSE-251, AIML-148, AIDS-243, EEE-105, MECH-114, CSBS-244, CCE-134, CYBER-149.` };
-        return { valid: true, dept: REG_DEPT_CODES[deptCode], deptCode };
-      }
-
-      function onRegNumInput() {
-        const reg = document.getElementById('registerNumber').value.trim();
-        const fb  = document.getElementById('regNumFeedback');
-        if (!reg) { fb.textContent = ''; return; }
-        const result = validateRegNum(reg);
-        if (!result.valid) {
-          fb.textContent = result.error;
-          fb.style.color = '#ef4444';
-        } else {
-          fb.textContent = `✓ Dept detected: ${result.dept}`;
-          fb.style.color = '#16a34a';
-          // Auto-fill department dropdown
-          const selectVal = REG_DEPT_TO_SELECT[result.dept];
-          if (selectVal) document.getElementById('department').value = selectVal;
-
-          // Auto-fill batch dropdown
-          if (reg.length >= 6) {
-            const yearJoinedDigits = reg.substring(4, 6);
-            const year = parseInt(yearJoinedDigits);
-            if (!isNaN(year)) {
-              const startYear = 2000 + year;
-              const calculatedBatch = `${startYear}-${startYear + 4}`;
-              const batchSelect = document.getElementById('batch');
-              const hasOption = Array.from(batchSelect.options).some(opt => opt.value === calculatedBatch);
-              if (hasOption) {
-                batchSelect.value = calculatedBatch;
-              }
-            }
-          }
-        }
-      }
 
       // Frontend validation
       const emailCheck = validateSECEEmail(email);
@@ -389,7 +389,13 @@
         showAlert('Password should be at least 6 characters.', 'error'); return;
       }
 
+      const submitBtn = document.querySelector('.btn-register-submit');
+      const origText = submitBtn.textContent;
+
       try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending OTP...';
+
         const response = await fetch(`${API_BASE}/auth/student/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -397,39 +403,79 @@
         });
 
         const data = await response.json();
+        submitBtn.disabled = false;
+        submitBtn.textContent = origText;
 
         if (response.ok && data.success) {
-          showAlert('Registration successful! Redirecting to login...', 'success');
-          setTimeout(() => { window.location.href = 'index.html'; }, 2000);
+          showAlert('Verification OTP sent to your college email!', 'success');
+          document.getElementById('verificationSentEmail').textContent = email;
+          document.getElementById('verificationModalOverlay').style.display = 'flex';
+          const otpInput = document.getElementById('verificationOtpInput');
+          otpInput.value = '';
+          otpInput.focus();
+          startResendCooldown();
         } else {
           showAlert(data.message || 'Registration failed. Try again.', 'error');
         }
       } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origText;
         console.error(err);
         showAlert('Could not connect to the server. Make sure the backend is running!', 'error');
       }
     });
-  </script>
 
-  <!-- Registration OTP Verification Modal -->
-  <div class="modal-overlay" id="verificationModalOverlay">
-    <div class="modal-card">
-      <h3 style="color:#1a2a4a;margin-top:0;font-size:1.3rem;font-weight:700;">Email Verification Required</h3>
-      <p style="font-size:0.88rem;color:#64748b;margin:0.5rem 0 1.5rem 0;line-height:1.45;text-align:left;">
-        We have sent a 6-digit verification code to your college email <strong id="verificationSentEmail" style="color:#1a2a4a;"></strong>. Please enter it below to complete registration:
-      </p>
-      <input type="text" id="verificationOtpInput" class="otp-input" placeholder="000000" maxlength="6">
-      <div style="display:flex;gap:12px;">
-        <button type="button" class="btn-secondary" style="flex:1;" onclick="closeVerificationModal()">Cancel</button>
-        <button type="button" class="btn-primary" style="flex:1;background:var(--navy);border-color:var(--navy);" onclick="submitVerificationOtp()">Verify</button>
-      </div>
-    </div>
-  </div>
+    let resendTimer = null;
+    function startResendCooldown() {
+      const resendBtn = document.getElementById('resendOtpBtn');
+      if (!resendBtn) return;
+      let seconds = 60;
+      resendBtn.disabled = true;
+      resendBtn.style.opacity = '0.6';
+      resendBtn.style.cursor = 'not-allowed';
+      resendBtn.textContent = `Resend OTP in ${seconds}s`;
 
-  <script>
+      if (resendTimer) clearInterval(resendTimer);
+      resendTimer = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+          clearInterval(resendTimer);
+          resendBtn.disabled = false;
+          resendBtn.style.opacity = '1';
+          resendBtn.style.cursor = 'pointer';
+          resendBtn.textContent = "Didn't receive code? Resend OTP";
+        } else {
+          resendBtn.textContent = `Resend OTP in ${seconds}s`;
+        }
+      }, 1000);
+    }
+
+    async function resendVerificationOtp() {
+      const email = document.getElementById('email').value.trim();
+      if (!email) return;
+      try {
+        showAlert('Sending new verification OTP...', 'success');
+        const response = await fetch(`${API_BASE}/auth/student/resend-verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          showAlert('A new OTP has been sent to your email.', 'success');
+          startResendCooldown();
+        } else {
+          showAlert(data.message || 'Could not resend OTP.', 'error');
+        }
+      } catch (err) {
+        showAlert('Error connecting to server to resend OTP.', 'error');
+      }
+    }
+
     function closeVerificationModal() {
       document.getElementById('verificationModalOverlay').style.display = 'none';
       document.getElementById('verificationOtpInput').value = '';
+      if (resendTimer) clearInterval(resendTimer);
     }
 
     async function submitVerificationOtp() {
@@ -440,6 +486,12 @@
         return;
       }
 
+      const verifyBtn = document.getElementById('verifyOtpSubmitBtn');
+      if (verifyBtn) {
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = 'Verifying...';
+      }
+
       try {
         const response = await fetch(`${API_BASE}/auth/student/verify-email`, {
           method: 'POST',
@@ -447,19 +499,62 @@
           body: JSON.stringify({ email, otp })
         });
         const data = await response.json();
+        if (verifyBtn) {
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = 'Verify';
+        }
+
         if (response.ok && data.success) {
           showAlert('Email verified successfully! Redirecting to login...', 'success');
           closeVerificationModal();
-          setTimeout(() => { window.location.href = 'index.html'; }, 2000);
+          setTimeout(() => { window.location.href = 'index.html'; }, 1800);
         } else {
           showAlert(data.message || 'Verification failed. Please try again.', 'error');
         }
       } catch (err) {
+        if (verifyBtn) {
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = 'Verify';
+        }
         console.error(err);
         showAlert('Could not connect to the server. Make sure the backend is running!', 'error');
       }
     }
+
+    // Auto-open modal if redirected with verifyEmail query param
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const verifyEmail = params.get('verifyEmail');
+      if (verifyEmail) {
+        document.getElementById('email').value = verifyEmail;
+        document.getElementById('verificationSentEmail').textContent = verifyEmail;
+        document.getElementById('verificationModalOverlay').style.display = 'flex';
+        document.getElementById('verificationOtpInput').focus();
+        startResendCooldown();
+      }
+    });
   </script>
+
+  <!-- Registration OTP Verification Modal -->
+  <div class="modal-overlay" id="verificationModalOverlay">
+    <div class="modal-card">
+      <div style="width: 52px; height: 52px; background: rgba(26,42,74,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="#1a2a4a"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </div>
+      <h3 style="color:#1a2a4a;margin-top:0;font-size:1.3rem;font-weight:700;">Email Verification Required</h3>
+      <p style="font-size:0.88rem;color:#64748b;margin:0.5rem 0 1.5rem 0;line-height:1.45;text-align:center;">
+        We sent a 6-digit OTP to your SECE email:<br><strong id="verificationSentEmail" style="color:#1a2a4a;word-break:break-all;"></strong><br>Please enter the code to activate your account:
+      </p>
+      <input type="text" id="verificationOtpInput" class="otp-input" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" onkeypress="if(event.key === 'Enter') submitVerificationOtp();">
+      <div style="display:flex;gap:12px;margin-bottom:1rem;">
+        <button type="button" class="btn-secondary" style="flex:1;" onclick="closeVerificationModal()">Cancel</button>
+        <button type="button" class="btn-primary" id="verifyOtpSubmitBtn" style="flex:1;background:var(--navy);border-color:var(--navy);" onclick="submitVerificationOtp()">Verify</button>
+      </div>
+      <div>
+        <button type="button" id="resendOtpBtn" onclick="resendVerificationOtp()" style="background:none;border:none;color:var(--navy);font-weight:600;font-size:0.85rem;cursor:pointer;padding:4px 8px;">Didn't receive code? Resend OTP</button>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
