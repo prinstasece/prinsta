@@ -73,27 +73,20 @@ const ADMIN_USERNAME_ENV = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD_ENV = process.env.ADMIN_PASSWORD || 'sece@print';
 
 // Email configuration for OTP sending
-const EMAIL_USER = process.env.EMAIL_USER || '';
-const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || '';
+const EMAIL_USER = process.env.EMAIL_USER || 'kavin.gs2025ece@sece.ac.in';
+const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || 'begbxbfwokrelbss';
 
 let emailTransporter = null;
 if (EMAIL_USER && EMAIL_APP_PASSWORD) {
-  // Use host and port 587 (STARTTLS) which is highly compatible with college network firewalls
   emailTransporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, 
+    service: 'gmail',
     auth: { 
       user: EMAIL_USER, 
       pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '') // remove any accidental spaces in App Password
     },
     tls: { 
-      rejectUnauthorized: false,
-      minVersion: 'TLSv1.2'
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000
+      rejectUnauthorized: false
+    }
   });
   
   // Verify the transporter connection on startup
