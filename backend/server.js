@@ -74,7 +74,7 @@ const ADMIN_PASSWORD_ENV = process.env.ADMIN_PASSWORD || 'sece@print';
 
 // Email configuration for OTP sending
 const EMAIL_USER = process.env.EMAIL_USER || 'prinstasece1@gmail.com';
-const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || 'begbxbfwokrelbss';
+const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || 'pqerzvqjtxhvicxs';
 
 let emailTransporter = null;
 if (EMAIL_USER && EMAIL_APP_PASSWORD) {
