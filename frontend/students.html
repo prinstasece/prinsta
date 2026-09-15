@@ -298,17 +298,36 @@
               <th>Gmail Account</th>
               <th>Register Number</th>
               <th>Department / Batch</th>
+              <th style="text-align: center; width: 100px;">Actions</th>
             </tr>
           </thead>
           <tbody id="studentsTableBody">
             <tr>
-              <td colspan="4" style="text-align: center; color: var(--gray-text);">Loading student registrations...</td>
+              <td colspan="5" style="text-align: center; color: var(--gray-text);">Loading student registrations...</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
   </main>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" id="deleteModalOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000;backdrop-filter:blur(3px);">
+    <div style="background:#fff;border-radius:14px;padding:1.75rem;max-width:420px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.15);border:1px solid #e2e8f0;text-align:center;">
+      <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem auto;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </div>
+      <h3 style="margin:0 0 0.5rem 0;color:#111;font-size:1.2rem;font-weight:800;">Delete Student Account?</h3>
+      <p style="font-size:0.88rem;color:#64748b;line-height:1.45;margin-bottom:1.5rem;">
+        Are you sure you want to delete the account for <strong id="delStudentName" style="color:#111;"></strong> (<span id="delStudentEmail" style="color:#111;word-break:break-all;"></span>)?<br><br>
+        <span style="color:#dc2626;font-weight:600;">The account will be deleted and the student will be able to register again.</span>
+      </p>
+      <div style="display:flex;gap:10px;">
+        <button type="button" onclick="closeDeleteModal()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#475569;font-weight:700;cursor:pointer;">Cancel</button>
+        <button type="button" id="confirmDeleteBtn" onclick="confirmDeleteStudent()" style="flex:1;padding:10px;border-radius:8px;border:none;background:#dc2626;color:#fff;font-weight:700;cursor:pointer;">Delete Account</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const ACTIVE_PAGE_NAME = 'students';
@@ -353,12 +372,16 @@
           allStudentsList = data.students || [];
           renderStudentsTable(allStudentsList);
         } else {
-          document.getElementById('studentsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-text);">Failed to load student profiles.</td></tr>';
+          document.getElementById('studentsTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-text);">Failed to load student profiles.</td></tr>';
         }
       } catch (err) {
         console.error('Students fetch error:', err);
-        document.getElementById('studentsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-text);">Connection error.</td></tr>';
+        document.getElementById('studentsTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-text);">Connection error.</td></tr>';
       }
+    }
+
+    function escapeAttr(str) {
+      return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
     function renderStudentsTable(list) {
@@ -367,11 +390,12 @@
       if (badge) badge.textContent = `Total Students: ${list.length}`;
 
       if (!list || list.length === 0) {
-        tBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-text);">No matching student registrations found.</td></tr>';
+        tBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-text);">No matching student registrations found.</td></tr>';
         return;
       }
 
       tBody.innerHTML = list.map(s => {
+        const studentId = s._id || s.id;
         const fullName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Google User';
         const deptBatch = (s.department && s.batch) ? `${s.department} (${s.batch})` : (s.department || s.batch || 'N/A');
         return `
@@ -380,9 +404,63 @@
             <td style="color:#111;">${s.email}</td>
             <td style="font-family:monospace;font-size:0.9rem;font-weight:700;color:#111;">${s.registerNumber || '—'}</td>
             <td style="color:#4b5563;">${deptBatch}</td>
+            <td style="text-align:center;">
+              <button type="button" class="btn-delete-student" onclick="openDeleteModal('${studentId}', '${escapeAttr(fullName)}', '${escapeAttr(s.email)}')" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:6px 12px;border-radius:6px;font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s;" onmouseover="this.style.background='#fca5a5'" onmouseout="this.style.background='#fee2e2'" title="Delete Student Account">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                Delete
+              </button>
+            </td>
           </tr>
         `;
       }).join('');
+    }
+
+    let studentIdToDelete = null;
+
+    function openDeleteModal(id, name, email) {
+      studentIdToDelete = id;
+      document.getElementById('delStudentName').textContent = name;
+      document.getElementById('delStudentEmail').textContent = email;
+      document.getElementById('deleteModalOverlay').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+      studentIdToDelete = null;
+      document.getElementById('deleteModalOverlay').style.display = 'none';
+    }
+
+    async function confirmDeleteStudent() {
+      if (!studentIdToDelete) return;
+      const btn = document.getElementById('confirmDeleteBtn');
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/students/${studentIdToDelete}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+        btn.disabled = false;
+        btn.textContent = 'Delete Account';
+        closeDeleteModal();
+
+        if (response.ok && data.success) {
+          showAlert(data.message || 'Student account deleted successfully.', 'success');
+          loadStudents();
+        } else {
+          showAlert(data.message || 'Failed to delete student account.', 'error');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Delete Account';
+        console.error('Delete student error:', err);
+        showAlert('Could not connect to server to delete student account.', 'error');
+      }
     }
 
     function filterStudents() {
@@ -399,7 +477,6 @@
       });
       renderStudentsTable(filtered);
     }
-
 
     function logout() {
       localStorage.removeItem('adminToken');

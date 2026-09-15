@@ -3522,6 +3522,37 @@ app.get('/admin/students', authenticateAdmin, async (req, res) => {
   }
 });
 
+// DELETE /admin/students/:id — Admin only: delete a specific student account
+app.delete('/admin/students/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    let deletedStudent = null;
+
+    if (dbConnected) {
+      deletedStudent = await Student.findByIdAndDelete(id);
+    } else {
+      const idx = inMemoryStudents.findIndex(s => (s._id && s._id.toString() === id) || (s.id && s.id.toString() === id));
+      if (idx !== -1) {
+        deletedStudent = inMemoryStudents.splice(idx, 1)[0];
+      }
+    }
+
+    if (!deletedStudent) {
+      return res.status(404).json({ success: false, message: 'Student account not found.' });
+    }
+
+    console.log(`[ADMIN] Deleted student account: ${deletedStudent.email} (${deletedStudent._id || id})`);
+
+    return res.status(200).json({
+      success: true,
+      message: `Student account for ${deletedStudent.firstName || ''} ${deletedStudent.lastName || ''} (${deletedStudent.email}) has been deleted successfully.`
+    });
+  } catch (error) {
+    console.error("Delete Student Error:", error);
+    return res.status(500).json({ success: false, message: 'Server processing error.' });
+  }
+});
+
 // DELETE /admin/students/all — Admin only: delete ALL student accounts
 app.delete('/admin/students/all', authenticateAdmin, async (req, res) => {
   try {
