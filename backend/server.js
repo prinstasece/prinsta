@@ -785,12 +785,10 @@ app.post('/auth/student/register', async (req, res) => {
       }
     }
 
-    // Send OTP email to the student's college email
-    try {
-      await sendVerificationEmail(emailLower, otp);
-    } catch (mailErr) {
+    // Send OTP email to the student's college email asynchronously
+    sendVerificationEmail(emailLower, otp).catch(mailErr => {
       console.error('[EMAIL ERROR] Failed to send registration verification email:', mailErr.message);
-    }
+    });
 
     return res.status(200).json({
       success: true,
@@ -920,7 +918,7 @@ app.post('/auth/student/login', async (req, res) => {
     }
 
     if (!student) {
-      return res.status(400).json({ success: false, message: 'Invalid email or password.' });
+      return res.status(404).json({ success: false, notRegistered: true, message: 'Account not registered. Please create a new account.' });
     }
 
     const validPassword = await bcrypt.compare(password, student.password);
@@ -1001,6 +999,13 @@ app.post('/auth/login', async (req, res) => {
           redirectTo: '/student.html'
         });
       }
+    } else if (idLower.includes('@') || /^\d{4}/.test(idTrimmed) || /^2\d[a-zA-Z]/.test(idTrimmed)) {
+      // Student identifier detected but account does not exist / was deleted
+      return res.status(404).json({
+        success: false,
+        notRegistered: true,
+        message: 'Account not registered. Please create a new account.'
+      });
     }
 
     // 2. Admin check (hardcoded credentials from .env)
@@ -2497,57 +2502,56 @@ app.post('/auth/google', async (req, res) => {
       student = await Student.findOne({ email });
 
       if (!student) {
-        // Auto-register new SECE college student on first Google Login
-        student = new Student({
+        return res.status(404).json({
+          success: false,
+          notRegistered: true,
           email,
           firstName,
           lastName,
-          department: emailProfile ? emailProfile.department : undefined,
-          batch: emailProfile ? emailProfile.batch : undefined,
-          isVerified: true,
-          registerNumber: null,
-          phone: null
+          message: 'Account not registered. Please sign up to create your account.'
         });
+      }
+
+      if (student.isVerified === false) {
+        return res.status(400).json({
+          success: false,
+          requiresVerification: true,
+          email: student.email,
+          message: 'Please verify your college email with the OTP sent to your email.'
+        });
+      }
+
+      if (emailProfile && !student.department) {
+        student.department = emailProfile.department;
+        student.batch = emailProfile.batch;
         await student.save();
-        console.log(`[Google Auth] Auto-registered new student: ${email}`);
-      } else {
-        // Automatically make existing student verified if they log in via Google
-        if (student.isVerified === false) {
-          student.isVerified = true;
-          await student.save();
-        }
-        if (emailProfile && !student.department) {
-          // Backfill dept/batch if missing for existing student
-          student.department = emailProfile.department;
-          student.batch = emailProfile.batch;
-          await student.save();
-        }
       }
     } else {
       student = inMemoryStudents.find(s => s.email === email);
 
       if (!student) {
-        student = {
-          _id: 'mem_std_' + Date.now(),
+        return res.status(404).json({
+          success: false,
+          notRegistered: true,
           email,
           firstName,
           lastName,
-          department: emailProfile ? emailProfile.department : undefined,
-          batch: emailProfile ? emailProfile.batch : undefined,
-          isVerified: true,
-          registerNumber: null,
-          phone: null
-        };
-        inMemoryStudents.push(student);
-        console.log(`[Google Auth] Auto-registered in-memory student: ${email}`);
-      } else {
-        if (student.isVerified === false) {
-          student.isVerified = true;
-        }
-        if (emailProfile && !student.department) {
-          student.department = emailProfile.department;
-          student.batch = emailProfile.batch;
-        }
+          message: 'Account not registered. Please sign up to create your account.'
+        });
+      }
+
+      if (student.isVerified === false) {
+        return res.status(400).json({
+          success: false,
+          requiresVerification: true,
+          email: student.email,
+          message: 'Please verify your college email with the OTP sent to your email.'
+        });
+      }
+
+      if (emailProfile && !student.department) {
+        student.department = emailProfile.department;
+        student.batch = emailProfile.batch;
       }
     }
 
@@ -2584,7 +2588,7 @@ app.get('/auth/student/me', authenticateStudent, async (req, res) => {
     }
 
     if (!student) {
-      return res.status(404).json({ success: false, message: 'Student profile not found.' });
+      return res.status(404).json({ success: false, notRegistered: true, accountDeleted: true, message: 'Account not registered. Please create a new account.' });
     }
 
     return res.status(200).json({

@@ -56,6 +56,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     setState(() => _loading = false);
     if (result['success'] != true) {
       setState(() => _error = result['message']);
+      if (result['notRegistered'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Account not registered. Please create a new account.'),
+            backgroundColor: AppColors.error,
+            action: SnackBarAction(
+              label: 'Sign Up',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+              },
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -405,6 +421,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           _loading = false;
           _error = res['message'] ?? 'Google authentication failed.';
         });
+        if (res['notRegistered'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Account not registered. Please create a new account.'),
+              backgroundColor: AppColors.error,
+              action: SnackBarAction(
+                label: 'Sign Up',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                },
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     } catch (err) {
       setState(() {

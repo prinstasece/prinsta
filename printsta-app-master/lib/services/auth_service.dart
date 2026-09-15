@@ -50,6 +50,7 @@ class AuthService extends ChangeNotifier {
       return {
         'success': false,
         'message': data['message'] ?? 'Login failed',
+        'notRegistered': data['notRegistered'] == true || response.statusCode == 404,
         'requiresVerification': data['requiresVerification'] == true,
         'email': data['email']
       };
@@ -84,7 +85,15 @@ class AuthService extends ChangeNotifier {
           'profileIncomplete': data['profileIncomplete'] == true
         };
       }
-      return {'success': false, 'message': data['message'] ?? 'Google authentication failed.'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Google authentication failed.',
+        'notRegistered': data['notRegistered'] == true || response.statusCode == 404,
+        'requiresVerification': data['requiresVerification'] == true,
+        'email': data['email'],
+        'firstName': data['firstName'],
+        'lastName': data['lastName']
+      };
     } catch (e) {
       return {'success': false, 'message': 'Cannot connect to server. Make sure backend is running.'};
     }

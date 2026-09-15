@@ -452,10 +452,15 @@
           }
         } else {
           showAlert(data.message || 'Invalid credentials.', 'error');
-          if (data.requiresVerification && data.email) {
+          if (data.notRegistered) {
+            showAlert(data.message || 'Account not registered. Please create a new account.', 'error');
+            setTimeout(() => {
+              window.location.href = 'register.html';
+            }, 2000);
+          } else if (data.requiresVerification && data.email) {
             setTimeout(() => {
               window.location.href = `register.html?verifyEmail=${encodeURIComponent(data.email)}`;
-            }, 2500);
+            }, 2000);
           }
         }
       } catch (err) {
@@ -488,6 +493,21 @@
           setTimeout(() => {
             window.location.href = data.profileIncomplete ? 'complete-profile.html' : 'student.html';
           }, 1500);
+        } else if (data.notRegistered) {
+          showAlert(data.message || 'Account not registered. Redirecting to Sign Up...', 'error');
+          setTimeout(() => {
+            const query = new URLSearchParams({
+              email: data.email || '',
+              firstName: data.firstName || '',
+              lastName: data.lastName || ''
+            });
+            window.location.href = `register.html?${query.toString()}`;
+          }, 2000);
+        } else if (data.requiresVerification && data.email) {
+          showAlert(data.message || 'Please verify your college email with the OTP sent to your email.', 'error');
+          setTimeout(() => {
+            window.location.href = `register.html?verifyEmail=${encodeURIComponent(data.email)}`;
+          }, 2000);
         } else {
           showAlert(data.message || 'Google authentication failed.', 'error');
         }

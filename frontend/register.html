@@ -555,7 +555,7 @@
       }
     }
 
-    // Auto-open modal if redirected with verifyEmail query param
+    // Auto-open modal if redirected with verifyEmail query param or pre-fill from Google SSO
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       const verifyEmail = params.get('verifyEmail');
@@ -566,6 +566,16 @@
         document.getElementById('verificationOtpInput').focus();
         startResendCooldown();
       }
+
+      const prefillEmail = params.get('email');
+      const prefillFirst = params.get('firstName');
+      const prefillLast  = params.get('lastName');
+      if (prefillEmail) {
+        document.getElementById('email').value = prefillEmail;
+        onEmailInput();
+      }
+      if (prefillFirst) document.getElementById('firstName').value = prefillFirst;
+      if (prefillLast) document.getElementById('lastName').value = prefillLast;
     });
   </script>
 
