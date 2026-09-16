@@ -87,9 +87,12 @@ if (EMAIL_USER && EMAIL_APP_PASSWORD) {
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,       // STARTTLS (upgrades connection after connect)
-    family: 4,           // Force IPv4 to avoid ENETUNREACH on IPv6
+    family: 4,           // Force IPv4
+    lookup: (hostname, options, callback) => {
+      dns.lookup(hostname, { family: 4 }, callback);
+    },
     auth: {
-      user: EMAIL_USER,
+      user: EMAIL_USER.trim(),
       pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '')
     },
     tls: {
@@ -102,9 +105,10 @@ if (EMAIL_USER && EMAIL_APP_PASSWORD) {
   emailTransporter.verify((err) => {
     if (err) {
       console.error('[EMAIL] Verification failed. Error details:', err.message);
-      console.warn('[EMAIL] Make sure 2-Step Verification is active and you generated a 16-character Google App Password (not your standard password).');
+      console.warn('[EMAIL] Configured user:', EMAIL_USER);
+      console.warn('[EMAIL] Make sure 2-Step Verification is active and you generated a 16-character Google App Password.');
     } else {
-      console.log('[EMAIL] Transporter connected successfully! Verification emails and close-shop daily reports will be sent via Gmail.');
+      console.log(`[EMAIL] Transporter connected successfully! Using account: ${EMAIL_USER}`);
     }
   });
 } else {
