@@ -52,7 +52,7 @@ app.use(express.urlencoded({ extended: true }));
 // ----------------------------------------------------
 // PLACEHOLDERS & CONFIGURATION
 // ----------------------------------------------------
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "534651137120-o0acbi2mgtclfmcqf5o8auu30jo1n0pg.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "625418470620-mv5opdbarpa0j8kjgpiaqqrn34nu9ece.apps.googleusercontent.com";
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "rzp_test_SwR8ahOktg8jMQ";
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "uRAJgzPthR4ZqhyqLju7RD7P";
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/printsta";
