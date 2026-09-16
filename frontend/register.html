@@ -476,10 +476,18 @@
         submitBtn.textContent = origText;
 
         if (response.ok && data.success) {
-          showAlert('Account created successfully! Redirecting to login...', 'success');
-          setTimeout(() => {
-            window.location.href = 'index.html';
-          }, 1500);
+          if (data.requiresVerification) {
+            document.getElementById('verificationSentEmail').textContent = email;
+            document.getElementById('verificationModalOverlay').style.display = 'flex';
+            resetOtpBoxes();
+            startResendCooldown();
+            showAlert('A 6-digit verification code was sent to ' + email, 'success');
+          } else {
+            showAlert('Account created successfully! Redirecting to login...', 'success');
+            setTimeout(() => {
+              window.location.href = 'index.html';
+            }, 1500);
+          }
         } else {
           showAlert(data.message || 'Registration failed. Try again.', 'error');
         }
@@ -499,7 +507,7 @@
       resendBtn.disabled = true;
       resendBtn.style.opacity = '0.6';
       resendBtn.style.cursor = 'not-allowed';
-      resendBtn.textContent = `Resend OTP in ${seconds}s`;
+      resendBtn.textContent = `Resend Code in ${seconds}s`;
 
       if (resendTimer) clearInterval(resendTimer);
       resendTimer = setInterval(() => {
@@ -511,7 +519,7 @@
           resendBtn.style.cursor = 'pointer';
           resendBtn.textContent = "Didn't receive code? Resend OTP";
         } else {
-          resendBtn.textContent = `Resend OTP in ${seconds}s`;
+          resendBtn.textContent = `Resend Code in ${seconds}s`;
         }
       }, 1000);
     }
@@ -529,6 +537,7 @@
         const data = await response.json();
         if (response.ok && data.success) {
           showAlert('A new OTP has been sent to your email.', 'success');
+          resetOtpBoxes();
           startResendCooldown();
         } else {
           showAlert(data.message || 'Could not resend OTP.', 'error');
@@ -540,15 +549,28 @@
 
     function closeVerificationModal() {
       document.getElementById('verificationModalOverlay').style.display = 'none';
-      document.getElementById('verificationOtpInput').value = '';
+      resetOtpBoxes();
       if (resendTimer) clearInterval(resendTimer);
+    }
+
+    function resetOtpBoxes() {
+      const boxes = document.querySelectorAll('.otp-digit');
+      boxes.forEach(b => b.value = '');
+      if (boxes[0]) boxes[0].focus();
+    }
+
+    function getEnteredOtp() {
+      const boxes = document.querySelectorAll('.otp-digit');
+      let code = '';
+      boxes.forEach(b => code += b.value.trim());
+      return code;
     }
 
     async function submitVerificationOtp() {
       const email = document.getElementById('email').value.trim();
-      const otp = document.getElementById('verificationOtpInput').value.trim();
+      const otp = getEnteredOtp();
       if (otp.length !== 6) {
-        showAlert('Please enter the 6-digit OTP code.', 'error');
+        showAlert('Please enter the complete 6-digit OTP code.', 'error');
         return;
       }
 
@@ -571,11 +593,18 @@
         }
 
         if (response.ok && data.success) {
-          showAlert('Email verified successfully! Redirecting to login...', 'success');
+          showAlert('Email verified successfully! Logging you in...', 'success');
           closeVerificationModal();
-          setTimeout(() => { window.location.href = 'index.html'; }, 1800);
+          if (data.token) {
+            localStorage.setItem('studentToken', data.token);
+            localStorage.setItem('studentName', data.studentName || '');
+            localStorage.setItem('studentEmail', email);
+            setTimeout(() => { window.location.href = 'student.html'; }, 1000);
+          } else {
+            setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+          }
         } else {
-          showAlert(data.message || 'Verification failed. Please try again.', 'error');
+          showAlert(data.message || 'Verification failed. Please check the OTP and try again.', 'error');
         }
       } catch (err) {
         if (verifyBtn) {
@@ -587,15 +616,62 @@
       }
     }
 
+    // Auto-setup 6 OTP digit boxes navigation & paste
+    function setupOtpDigitListeners() {
+      const boxes = document.querySelectorAll('.otp-digit');
+      boxes.forEach((box, index) => {
+        box.addEventListener('input', (e) => {
+          const val = e.target.value.replace(/[^0-9]/g, '');
+          e.target.value = val ? val.slice(-1) : '';
+          if (val && index < boxes.length - 1) {
+            boxes[index + 1].focus();
+          }
+          if (getEnteredOtp().length === 6) {
+            submitVerificationOtp();
+          }
+        });
+
+        box.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace' && !box.value && index > 0) {
+            boxes[index - 1].focus();
+          } else if (e.key === 'ArrowLeft' && index > 0) {
+            boxes[index - 1].focus();
+          } else if (e.key === 'ArrowRight' && index < boxes.length - 1) {
+            boxes[index + 1].focus();
+          } else if (e.key === 'Enter') {
+            submitVerificationOtp();
+          }
+        });
+
+        box.addEventListener('paste', (e) => {
+          e.preventDefault();
+          const pasteData = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+          if (pasteData) {
+            pasteData.split('').forEach((char, i) => {
+              if (boxes[i]) boxes[i].value = char;
+            });
+            if (pasteData.length === 6) {
+              boxes[5].focus();
+              submitVerificationOtp();
+            } else if (boxes[pasteData.length]) {
+              boxes[pasteData.length].focus();
+            }
+          }
+        });
+      });
+    }
+
     // Auto-open modal if redirected with verifyEmail query param or pre-fill from Google SSO
     window.addEventListener('DOMContentLoaded', () => {
+      setupOtpDigitListeners();
+
       const params = new URLSearchParams(window.location.search);
       const verifyEmail = params.get('verifyEmail');
       if (verifyEmail) {
         document.getElementById('email').value = verifyEmail;
         document.getElementById('verificationSentEmail').textContent = verifyEmail;
         document.getElementById('verificationModalOverlay').style.display = 'flex';
-        document.getElementById('verificationOtpInput').focus();
+        resetOtpBoxes();
         startResendCooldown();
       }
 
@@ -614,20 +690,29 @@
   <!-- Registration OTP Verification Modal -->
   <div class="modal-overlay" id="verificationModalOverlay">
     <div class="modal-card">
-      <div style="width: 52px; height: 52px; background: rgba(26,42,74,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="#1a2a4a"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      <div style="width: 56px; height: 56px; background: rgba(26,42,74,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="#1a2a4a"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
       </div>
-      <h3 style="color:#1a2a4a;margin-top:0;font-size:1.3rem;font-weight:700;">Email Verification Required</h3>
+      <h3 style="color:#1a2a4a;margin-top:0;font-size:1.35rem;font-weight:800;">Email Verification</h3>
       <p style="font-size:0.88rem;color:#64748b;margin:0.5rem 0 1.5rem 0;line-height:1.45;text-align:center;">
-        We sent a 6-digit OTP to your SECE email:<br><strong id="verificationSentEmail" style="color:#1a2a4a;word-break:break-all;"></strong><br>Please enter the code to activate your account:
+        We've sent a 6-digit OTP to your SECE email:<br><strong id="verificationSentEmail" style="color:#1a2a4a;word-break:break-all;"></strong>
       </p>
-      <input type="text" id="verificationOtpInput" class="otp-input" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" onkeypress="if(event.key === 'Enter') submitVerificationOtp();">
+      
+      <div class="otp-boxes-container" style="display:flex;justify-content:center;gap:8px;margin:1rem 0 1.5rem 0;">
+        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric" pattern="[0-9]*" style="width:42px;height:50px;font-size:1.4rem;font-weight:800;text-align:center;color:#1a2a4a;background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;outline:none;">
+        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric" pattern="[0-9]*" style="width:42px;height:50px;font-size:1.4rem;font-weight:800;text-align:center;color:#1a2a4a;background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;outline:none;">
+        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric" pattern="[0-9]*" style="width:42px;height:50px;font-size:1.4rem;font-weight:800;text-align:center;color:#1a2a4a;background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;outline:none;">
+        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric" pattern="[0-9]*" style="width:42px;height:50px;font-size:1.4rem;font-weight:800;text-align:center;color:#1a2a4a;background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;outline:none;">
+        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric" pattern="[0-9]*" style="width:42px;height:50px;font-size:1.4rem;font-weight:800;text-align:center;color:#1a2a4a;background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;outline:none;">
+        <input type="text" maxlength="1" class="otp-digit" inputmode="numeric" pattern="[0-9]*" style="width:42px;height:50px;font-size:1.4rem;font-weight:800;text-align:center;color:#1a2a4a;background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;outline:none;">
+      </div>
+
       <div style="display:flex;gap:12px;margin-bottom:1rem;">
         <button type="button" class="btn-secondary" style="flex:1;" onclick="closeVerificationModal()">Cancel</button>
-        <button type="button" class="btn-primary" id="verifyOtpSubmitBtn" style="flex:1;background:var(--navy);border-color:var(--navy);" onclick="submitVerificationOtp()">Verify</button>
+        <button type="button" class="btn-primary" id="verifyOtpSubmitBtn" style="flex:1;background:var(--navy);border-color:var(--navy);" onclick="submitVerificationOtp()">Verify &amp; Sign In</button>
       </div>
       <div>
-        <button type="button" id="resendOtpBtn" onclick="resendVerificationOtp()" style="background:none;border:none;color:var(--navy);font-weight:600;font-size:0.85rem;cursor:pointer;padding:4px 8px;">Didn't receive code? Resend OTP</button>
+        <button type="button" id="resendOtpBtn" onclick="resendVerificationOtp()" style="background:none;border:none;color:var(--navy);font-weight:700;font-size:0.85rem;cursor:pointer;padding:4px 8px;">Didn't receive code? Resend OTP</button>
       </div>
     </div>
   </div>

@@ -215,20 +215,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully! Please log in.'),
-          backgroundColor: AppColors.success,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      Navigator.pop(context);
+      if (result['requiresVerification'] == true) {
+        final verified = await _showVerificationDialog(_emailCtrl.text.trim());
+        if (verified == true && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account verified successfully! Please log in.'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully! Please log in.'),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        Navigator.pop(context);
+      }
     } else {
       setState(() => _error = result['message'] ?? 'Registration failed.');
     }
   }
 
-  Future<void> _showVerificationDialog(String email) async {
+  Future<bool?> _showVerificationDialog(String email) async {
     final otpCtrl = TextEditingController();
     String? dialogError;
     bool dialogLoading = false;

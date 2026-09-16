@@ -732,6 +732,19 @@ app.post('/auth/student/register', async (req, res) => {
       // MongoDB Flow
       const existingStudent = await Student.findOne({ email: emailLower });
       if (existingStudent) {
+        if (existingStudent.isVerified === false) {
+          // Re-send verification OTP for unverified accounts
+          existingStudent.verificationOtp = otp;
+          existingStudent.verificationOtpExpiry = otpExpiry;
+          await existingStudent.save();
+          sendVerificationEmail(emailLower, otp).catch(e => console.error('[EMAIL ERROR]:', e.message));
+          return res.status(200).json({
+            success: true,
+            requiresVerification: true,
+            email: emailLower,
+            message: `A verification OTP has been resent to ${emailLower}.`
+          });
+        }
         return res.status(400).json({ success: false, message: 'Email is already registered. Please login.' });
       }
 
@@ -751,7 +764,9 @@ app.post('/auth/student/register', async (req, res) => {
         registerNumber: regClean,
         department: department || "",
         batch: batch || "",
-        isVerified: true
+        isVerified: false,
+        verificationOtp: otp,
+        verificationOtpExpiry: otpExpiry
       });
       await student.save();
     } else {
@@ -759,6 +774,17 @@ app.post('/auth/student/register', async (req, res) => {
       console.log(`[Offline Mode] Registering student: ${emailLower}`);
       const existingStudent = inMemoryStudents.find(s => s.email && s.email.toLowerCase() === emailLower);
       if (existingStudent) {
+        if (existingStudent.isVerified === false) {
+          existingStudent.verificationOtp = otp;
+          existingStudent.verificationOtpExpiry = otpExpiry;
+          sendVerificationEmail(emailLower, otp).catch(e => console.error('[EMAIL ERROR]:', e.message));
+          return res.status(200).json({
+            success: true,
+            requiresVerification: true,
+            email: emailLower,
+            message: `A verification OTP has been resent to ${emailLower}.`
+          });
+        }
         return res.status(400).json({ success: false, message: 'Email is already registered. Please login.' });
       }
 
@@ -774,15 +800,23 @@ app.post('/auth/student/register', async (req, res) => {
         firstName, lastName, email: emailLower, phone: phone || "N/A", password: hashedPassword,
         registerNumber: regClean, department: department || "", batch: batch || "",
         pushSubscription: null,
-        isVerified: true,
+        isVerified: false,
+        verificationOtp: otp,
+        verificationOtpExpiry: otpExpiry,
         createdAt: new Date()
       });
     }
 
+    // Send email asynchronously in background
+    sendVerificationEmail(emailLower, otp).catch(mailErr => {
+      console.error('[EMAIL ERROR] Failed to send registration verification email:', mailErr.message);
+    });
+
     return res.status(200).json({
       success: true,
-      requiresVerification: false,
-      message: 'Account created successfully! Please login.'
+      requiresVerification: true,
+      email: emailLower,
+      message: `A 6-digit verification OTP has been sent to ${emailLower}.`
     });
   } catch (error) {
     console.error("Register Error:", error);
@@ -826,7 +860,17 @@ app.post('/auth/student/verify-email', async (req, res) => {
     if (dbConnected) {
       await student.save();
     }
-    return res.status(200).json({ success: true, message: 'Email verified successfully! You can now login.' });
+    const token = jwt.sign(
+      { id: student._id, name: `${student.firstName} ${student.lastName}`, email: student.email, role: 'student' },
+      STUDENT_JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    return res.status(200).json({
+      success: true,
+      token,
+      studentName: `${student.firstName} ${student.lastName}`,
+      message: 'Email verified successfully! You can now login.'
+    });
   } catch (error) {
     console.error('Verify Email Error:', error);
     return res.status(500).json({ success: false, message: 'Server processing error during verification.' });
@@ -864,11 +908,9 @@ app.post('/auth/student/resend-verification', async (req, res) => {
       await student.save();
     }
 
-    try {
-      await sendVerificationEmail(emailLower, otp);
-    } catch (mailErr) {
+    sendVerificationEmail(emailLower, otp).catch(mailErr => {
       console.error('[EMAIL ERROR] Failed to resend verification email:', mailErr.message);
-    }
+    });
 
     return res.status(200).json({
       success: true,
@@ -912,6 +954,22 @@ app.post('/auth/student/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, student.password);
     if (!validPassword) {
       return res.status(400).json({ success: false, message: 'Invalid email or password.' });
+    }
+
+    if (student.isVerified === false) {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
+      student.verificationOtp = otp;
+      student.verificationOtpExpiry = otpExpiry;
+      if (dbConnected) await student.save();
+      sendVerificationEmail(student.email, otp).catch(e => console.error('[EMAIL ERROR]:', e.message));
+
+      return res.status(403).json({
+        success: false,
+        requiresVerification: true,
+        email: student.email,
+        message: 'Please verify your email address before logging in. A new OTP has been sent.'
+      });
     }
 
     const token = jwt.sign(
@@ -959,6 +1017,21 @@ app.post('/auth/login', async (req, res) => {
     if (student) {
       const valid = await bcrypt.compare(password, student.password);
       if (valid) {
+        if (student.isVerified === false) {
+          const otp = Math.floor(100000 + Math.random() * 900000).toString();
+          const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
+          student.verificationOtp = otp;
+          student.verificationOtpExpiry = otpExpiry;
+          if (dbConnected) await student.save();
+          sendVerificationEmail(student.email, otp).catch(e => console.error('[EMAIL ERROR]:', e.message));
+
+          return res.status(403).json({
+            success: false,
+            requiresVerification: true,
+            email: student.email,
+            message: 'Please verify your email address before logging in. A new OTP has been sent.'
+          });
+        }
         const token = jwt.sign(
           { id: student._id, name: `${student.firstName} ${student.lastName}`, email: student.email, role: 'student' },
           STUDENT_JWT_SECRET, { expiresIn: '7d' }
@@ -3092,10 +3165,86 @@ async function generateToken() {
   return token;
 }
 
+// Helper function: send order confirmation and receipt email
+async function sendOrderReceiptEmail(toEmail, order) {
+  if (!emailTransporter || !toEmail) return;
+  try {
+    const html = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);">
+        <div style="background-color: #1a2a4a; padding: 22px; text-align: center;">
+          <span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">
+            <span style="color: #ffffff;">prin</span><span style="color: #f5a623;">sta</span>
+          </span>
+          <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; text-transform: uppercase; letter-spacing: 1.2px;">
+            Sri Eshwar College of Engineering
+          </div>
+        </div>
+        <div style="padding: 28px 22px; color: #334155; line-height: 1.6;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <span style="display: inline-block; background: #dcfce7; color: #15803d; font-weight: 700; font-size: 11px; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">Payment Verified</span>
+            <h2 style="font-size: 20px; font-weight: 800; color: #1a2a4a; margin: 8px 0 2px 0;">Print Order Receipt</h2>
+            <p style="margin: 0; font-size: 13px; color: #64748b;">Your order is queued for printing.</p>
+          </div>
+
+          <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 14px; text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: #64748b; font-weight: 700;">Collection Token</div>
+            <div style="font-size: 32px; font-weight: 800; color: #1a2a4a; letter-spacing: 2px; margin-top: 2px;">${order.tokenNumber}</div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 13.5px;">
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b;">Document:</td>
+              <td style="padding: 7px 0; font-weight: 600; text-align: right; color: #1e293b;">${order.fileName}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b;">Pages &amp; Copies:</td>
+              <td style="padding: 7px 0; font-weight: 600; text-align: right; color: #1e293b;">${order.pages} pages × ${order.copies} copy(ies)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b;">Mode:</td>
+              <td style="padding: 7px 0; font-weight: 600; text-align: right; color: #1e293b;">${order.colorMode === 'color' ? 'Color' : 'Black & White'}, ${order.sides === 'double' ? 'Double Sided' : 'Single Sided'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 7px 0; color: #64748b;">Payment Ref:</td>
+              <td style="padding: 7px 0; font-family: monospace; font-size: 11.5px; text-align: right; color: #1e293b;">${order.razorpayPaymentId || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0 4px 0; font-size: 15px; font-weight: 700; color: #1a2a4a;">Total Paid:</td>
+              <td style="padding: 10px 0 4px 0; font-size: 18px; font-weight: 800; text-align: right; color: #16a34a;">₹${Number(order.amount).toFixed(2)}</td>
+            </tr>
+          </table>
+
+          <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 12px; border-radius: 0 6px 6px 0; font-size: 12.5px; color: #1e40af; margin-bottom: 20px;">
+            Present Token <strong>${order.tokenNumber}</strong> at the print desk when your status updates to Ready.
+          </div>
+
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 18px 0;">
+          <p style="margin: 0; font-size: 12px; color: #94a3b8; text-align: center;">
+            Printsta — Sri Eshwar College of Engineering
+          </p>
+        </div>
+      </div>
+    `;
+
+    await emailTransporter.sendMail({
+      from: '"Printsta SECE" <prinstasece1@gmail.com>',
+      to: toEmail,
+      subject: `Printsta Order Confirmed - Token #${order.tokenNumber}`,
+      html: html
+    });
+  } catch (mailErr) {
+    console.error('[RECEIPT EMAIL ERROR]:', mailErr.message);
+  }
+}
+
 // 3. Verify Payment Signature & Assign Daily Token Number
 app.post('/verify-payment', authenticateStudent, async (req, res) => {
   try {
     const { orderId, razorpayPaymentId, razorpaySignature, razorpayOrderId, isMock } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: 'Order ID is required.' });
+    }
+
     let order = null;
 
     if (dbConnected) {
@@ -3108,10 +3257,31 @@ app.post('/verify-payment', authenticateStudent, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
-    // Signature Verification
-    if (isMock || RAZORPAY_KEY_ID === "YOUR_RAZORPAY_KEY_ID") {
-      console.log(`[Offline Mode] Simulating payment success for order: ${orderId}`);
+    // Security Check 1: Ownership Verification
+    if (order.studentId.toString() !== req.student.id.toString()) {
+      return res.status(403).json({ success: false, message: 'Unauthorized. You can only verify payments for your own orders.' });
+    }
+
+    // Security Check 2: Idempotency / Replay Protection
+    if (order.paymentStatus === 'paid') {
+      return res.status(200).json({
+        success: true,
+        message: 'Order is already verified and paid.',
+        tokenNumber: order.tokenNumber,
+        status: order.status
+      });
+    }
+
+    // Security Check 3: Strict Cryptographic Signature Verification
+    const isPlaceholderSecret = RAZORPAY_KEY_ID === "YOUR_RAZORPAY_KEY_ID" || RAZORPAY_KEY_SECRET === "YOUR_RAZORPAY_KEY_SECRET";
+
+    if (isPlaceholderSecret && isMock) {
+      console.log(`[Offline / Test Sandbox] Simulating payment success for order: ${orderId}`);
     } else {
+      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+        return res.status(400).json({ success: false, message: 'Missing Razorpay signature verification parameters.' });
+      }
+
       const body = razorpayOrderId + "|" + razorpayPaymentId;
       const expectedSignature = crypto
         .createHmac('sha256', RAZORPAY_KEY_SECRET)
@@ -3121,22 +3291,22 @@ app.post('/verify-payment', authenticateStudent, async (req, res) => {
       if (expectedSignature !== razorpaySignature) {
         order.paymentStatus = 'failed';
         if (dbConnected) await order.save();
-        return res.status(400).json({ success: false, message: 'Payment signature verification failed.' });
+        return res.status(400).json({ success: false, message: 'Payment signature verification failed. Invalid transaction signature.' });
       }
     }
 
-    // Set fields
+    // Update order status upon successful verified payment
     order.paymentStatus = 'paid';
-    order.razorpayPaymentId = razorpayPaymentId || 'mock_pay_' + Date.now();
+    order.razorpayPaymentId = razorpayPaymentId || ('rzp_pay_' + Date.now());
     order.status = order.orderType === 'xerox' ? 'ready' : 'waiting';
 
-    // Assign daily token number
+    // Assign atomic daily token number
     order.tokenNumber = await generateToken();
     if (dbConnected) {
       await order.save();
     }
 
-    // Real-time push to all connected admin tabs
+    // Real-time push to staff print queue
     notifyNewOrder({
       _id: order._id,
       tokenNumber: order.tokenNumber,
@@ -3158,10 +3328,15 @@ app.post('/verify-payment', authenticateStudent, async (req, res) => {
       createdAt: order.createdAt
     });
 
-    // PUSH NOTIFICATION 1: Order Success — Token Number
+    // Send Web Push Notification to student device
     sendPushNotification(order.studentId, {
       title: "Order Placed Successfully!",
       body: `Your print order is confirmed. Token Number: ${order.tokenNumber}. We will notify you when it is ready.`
+    });
+
+    // Send confirmation receipt email asynchronously
+    sendOrderReceiptEmail(req.student.email, order).catch(err => {
+      console.error('[RECEIPT EMAIL ERROR]:', err.message);
     });
 
     return res.status(200).json({
