@@ -77,12 +77,18 @@ const EMAIL_USER = process.env.EMAIL_USER || 'prinstasece1@gmail.com';
 const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || 'pqerzvqjtxhvicxs';
 
 let emailTransporter = null;
+const dns = require('dns');
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 if (EMAIL_USER && EMAIL_APP_PASSWORD) {
   emailTransporter = nodemailer.createTransport({
     service: 'gmail',
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
+    family: 4,
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
