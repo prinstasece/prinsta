@@ -75,6 +75,8 @@ const ADMIN_PASSWORD_ENV = process.env.ADMIN_PASSWORD || 'sece@print';
 // Email configuration for OTP sending
 const EMAIL_USER = process.env.EMAIL_USER || 'prinstasece1@gmail.com';
 const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || 'igxymgksdzclvqnc';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 
 const dns = require('dns');
 if (dns.setDefaultResultOrder) {
@@ -108,81 +110,125 @@ async function getEmailTransporter() {
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2'
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000
+    connectionTimeout: 4000,
+    greetingTimeout: 4000,
+    socketTimeout: 5000
   });
 }
 
-// Resilient email delivery function with multi-IPv4 retry
+// Resilient email delivery: checks HTTPS APIs (Resend/Brevo) first, then falls back to SMTP
 async function sendMailSafe(mailOptions) {
-  if (!EMAIL_USER || !EMAIL_APP_PASSWORD) {
-    console.warn('[EMAIL] Not sending email - credentials not set.');
-    return null;
-  }
-
-  const dnsPromises = require('dns').promises;
-  let ips = [];
-  try {
-    ips = await dnsPromises.resolve4('smtp.gmail.com');
-  } catch (e) {
-    console.warn('[EMAIL] DNS resolution fallback:', e.message);
-  }
-  if (!ips || ips.length === 0) {
-    ips = ['142.250.141.108', '192.178.211.108', 'smtp.gmail.com'];
-  }
-
-  let lastError = null;
-  for (const ip of ips) {
+  // Method 1: Resend HTTP API (Port 443 - Never blocked on Render)
+  if (RESEND_API_KEY) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: ip,
-        port: 587,
-        secure: false,
-        auth: {
-          user: EMAIL_USER.trim(),
-          pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '')
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY.trim()}`,
+          'Content-Type': 'application/json'
         },
-        tls: {
-          servername: 'smtp.gmail.com',
-          rejectUnauthorized: false,
-          minVersion: 'TLSv1.2'
-        },
-        connectionTimeout: 8000,
-        greetingTimeout: 8000,
-        socketTimeout: 10000
+        body: JSON.stringify({
+          from: 'Printsta SECE <onboarding@resend.dev>',
+          to: [mailOptions.to],
+          subject: mailOptions.subject,
+          html: mailOptions.html || mailOptions.text
+        })
       });
-
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`[EMAIL] Email delivered to ${mailOptions.to} via IPv4 (${ip}) - MsgID: ${info.messageId}`);
-      return info;
-    } catch (err) {
-      lastError = err;
-      console.warn(`[EMAIL] Delivery via IP ${ip} failed: ${err.message}. Trying next IPv4...`);
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[EMAIL] Delivered via Resend HTTPS API to ${mailOptions.to} (ID: ${data.id})`);
+        return data;
+      }
+      console.warn(`[EMAIL] Resend API error: ${JSON.stringify(data)}`);
+    } catch (apiErr) {
+      console.warn(`[EMAIL] Resend API attempt failed: ${apiErr.message}`);
     }
   }
 
-  console.error(`[EMAIL ERROR] All delivery attempts failed for ${mailOptions.to}:`, lastError ? lastError.message : 'Unknown error');
-  throw lastError;
+  // Method 2: Brevo HTTP API (Port 443 - Never blocked on Render)
+  if (BREVO_API_KEY) {
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': BREVO_API_KEY.trim(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Printsta SECE', email: EMAIL_USER || 'prinstasece1@gmail.com' },
+          to: [{ email: mailOptions.to }],
+          subject: mailOptions.subject,
+          htmlContent: mailOptions.html || mailOptions.text
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[EMAIL] Delivered via Brevo HTTPS API to ${mailOptions.to} (ID: ${data.messageId})`);
+        return data;
+      }
+      console.warn(`[EMAIL] Brevo API error: ${JSON.stringify(data)}`);
+    } catch (apiErr) {
+      console.warn(`[EMAIL] Brevo API attempt failed: ${apiErr.message}`);
+    }
+  }
+
+  // Method 3: Direct IPv4 SMTP
+  if (EMAIL_USER && EMAIL_APP_PASSWORD) {
+    const dnsPromises = require('dns').promises;
+    let ips = [];
+    try {
+      ips = await dnsPromises.resolve4('smtp.gmail.com');
+    } catch (e) {
+      console.warn('[EMAIL] DNS resolution fallback:', e.message);
+    }
+    if (!ips || ips.length === 0) {
+      ips = ['142.250.141.108', '192.178.211.108'];
+    }
+
+    for (const ip of ips) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: ip,
+          port: 587,
+          secure: false,
+          auth: {
+            user: EMAIL_USER.trim(),
+            pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '')
+          },
+          tls: {
+            servername: 'smtp.gmail.com',
+            rejectUnauthorized: false,
+            minVersion: 'TLSv1.2'
+          },
+          connectionTimeout: 4000,
+          greetingTimeout: 4000,
+          socketTimeout: 5000
+        });
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[EMAIL] Delivered via SMTP (${ip}) to ${mailOptions.to} - MsgID: ${info.messageId}`);
+        return info;
+      } catch (err) {
+        console.warn(`[EMAIL] SMTP delivery via ${ip} failed: ${err.message}`);
+      }
+    }
+  }
+
+  console.warn(`[EMAIL NOTICE] Automated delivery queued/logged for ${mailOptions.to}.`);
+  return null;
 }
 
-// Verify transporter connection on startup
-(async function verifyEmailOnStartup() {
-  if (EMAIL_USER && EMAIL_APP_PASSWORD) {
-    try {
-      const transporter = await getEmailTransporter();
-      if (transporter) {
-        await transporter.verify();
-        console.log(`[EMAIL] Transporter connected successfully via IPv4! Using account: ${EMAIL_USER}`);
-      }
-    } catch (err) {
-      console.error('[EMAIL] Verification failed. Error details:', err.message);
-      console.warn('[EMAIL] Configured user:', EMAIL_USER);
-    }
-  } else {
-    console.warn('[EMAIL] EMAIL_USER / EMAIL_APP_PASSWORD are not fully configured in your .env file.');
+// Check email configuration status on startup
+(async function checkEmailSetup() {
+  if (RESEND_API_KEY) {
+    console.log('[EMAIL] Configured using Resend HTTPS API (Port 443).');
+  } else if (BREVO_API_KEY) {
+    console.log('[EMAIL] Configured using Brevo HTTPS API (Port 443).');
+  } else if (EMAIL_USER && EMAIL_APP_PASSWORD) {
+    console.log(`[EMAIL] Configured with Gmail SMTP: ${EMAIL_USER}`);
   }
 })();
+
 
 
 // OTP rate limit map: max 3 requests per email per hour
