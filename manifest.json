@@ -1,0 +1,49 @@
+{
+  "name": "Printsta - SECE Print System",
+  "short_name": "Printsta",
+  "description": "Sri Eshwar College of Engineering Print & Xerox Ordering App",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8f9fc",
+  "theme_color": "#0f1a30",
+  "lang": "en",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/sece-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Order",
+      "short_name": "New Order",
+      "description": "Upload document to print",
+      "url": "/student.html",
+      "icons": [{ "src": "/assets/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "description": "View active and completed orders",
+      "url": "/student.html",
+      "icons": [{ "src": "/assets/logo.png", "sizes": "192x192" }]
+    }
+  ]
+}

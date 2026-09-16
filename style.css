@@ -1,0 +1,407 @@
+/* 
+   Printsta Design System Stylesheet (style.css)
+   Applied to all pages: index, admin-login, register, student, admin
+*/
+
+/* Core CSS Variable Tokens */
+:root {
+  --navy: #1a2a4a;
+  --gold: #f5a623;
+  --white: #ffffff;
+  --gray-bg: #f0f0f0;
+  --gray-text: #6b7280;
+  --border: #e5e7eb;
+  --font: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Page Reset & Base Rules */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font);
+}
+
+body {
+  background-color: var(--white);
+  color: #111;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1rem;
+}
+
+/* Header Component */
+.header {
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  position: relative;
+  min-height: 70px;
+}
+
+.sece-logo-img {
+  height: 68px;
+  width: auto;
+  max-width: 280px;
+  object-fit: contain;
+  display: block;
+}
+
+.wordmark {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-decoration: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.wordmark .prin {
+  color: var(--navy);
+}
+
+.wordmark .sta {
+  color: var(--gold);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-weight: 600;
+}
+
+.header-right span {
+  color: var(--navy);
+  font-size: 0.95rem;
+}
+
+.header-right .btn-logout {
+  background: var(--white);
+  color: var(--gold);
+  border: 2px solid var(--gold);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.header-right .btn-logout:hover {
+  background-color: #fffaf0;
+}
+
+/* Layout Containers */
+.form-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.grid-container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Page Heading styles */
+.page-heading {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #111;
+  text-align: center;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Input Fields Styles */
+.form-group {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+  width: 100%;
+}
+
+.form-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: var(--gray-bg);
+  border-radius: 10px;
+  padding: 2px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.input-wrapper:focus-within {
+  background-color: var(--white);
+  border-color: var(--navy);
+}
+
+.input-wrapper input,
+.input-wrapper select,
+.input-wrapper textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  color: #111;
+}
+
+.input-wrapper input::placeholder,
+.input-wrapper textarea::placeholder {
+  color: var(--gray-text);
+}
+
+/* Input Right-side Icon Button styling */
+.input-icon-btn {
+  background-color: var(--navy);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s;
+}
+
+.input-icon-btn:hover {
+  background-color: #0f1f3d;
+}
+
+.input-icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Button Component Styles */
+.btn-primary {
+  background-color: var(--navy);
+  color: var(--white);
+  border-radius: 10px;
+  padding: 14px;
+  font-weight: 700;
+  width: 100%;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-primary:hover {
+  background-color: #0f1f3d;
+}
+
+.btn-secondary {
+  background-color: var(--white);
+  color: var(--navy);
+  border: 2px solid var(--navy);
+  border-radius: 10px;
+  padding: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.btn-secondary:hover {
+  background-color: #f8f9fc;
+}
+
+/* Google Login UI Button */
+.btn-google {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  margin: 1.5rem auto;
+  transition: opacity 0.2s;
+}
+
+.btn-google:hover {
+  opacity: 0.8;
+}
+
+.btn-google svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Divider 'OR' Styles */
+.divider-or {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: var(--gray-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  width: 100%;
+}
+
+.divider-or::before,
+.divider-or::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.divider-or:not(:empty)::before {
+  margin-right: .5em;
+}
+
+.divider-or:not(:empty)::after {
+  margin-left: .5em;
+}
+
+/* Link Styles */
+.link-navy {
+  color: var(--navy);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.link-small-center {
+  display: block;
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--gray-text);
+  text-decoration: none;
+}
+
+.link-small-center a {
+  color: var(--navy);
+  font-weight: 600;
+}
+
+/* Alert Notification Panel */
+.alert-popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.9rem;
+  z-index: 99999 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: none;
+  animation: slideIn 0.3s ease;
+}
+
+.alert-popup.success {
+  background-color: #16a34a;
+}
+
+.alert-popup.error {
+  background-color: #dc2626;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+
+/* Dark / Light Theme System */
+:root {
+  --bg-color: #f8f9fc;
+  --panel-bg: #ffffff;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
+  --card-bg: #ffffff;
+  --input-bg: #f0f0f0;
+}
+
+
+
+body {
+  background-color: var(--bg-color) !important;
+  color: var(--text-main) !important;
+}
+
+.panel, .students-panel, .profile-card, .status-card, .order-card {
+  background-color: var(--panel-bg);
+  border-color: var(--border-color);
+  color: var(--text-main);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* ─── Premium UX Enhancements ───────────────────── */
+a, button, input, select, textarea, .sidebar-link, .tab-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active, .btn-primary:active, .btn-secondary:active, .sidebar-link:active, .tab-btn:active {
+  transform: scale(0.98);
+}
+
+.input-wrapper {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.input-wrapper:hover {
+  border-color: #cbd5e1;
+}
+.input-wrapper:focus-within {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(26, 42, 74, 0.1);
+  background-color: var(--white);
+}
+
+/* ─── Elegant Custom Scrollbars ──────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+
+
+
