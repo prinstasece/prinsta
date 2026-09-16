@@ -21,8 +21,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _loading = false;
   String? _error;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: '625418470620-mv5opdbarpa0j8kjgpiaqqrn34nu9ece.apps.googleusercontent.com',
     scopes: ['email', 'profile'],
   );
+
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
 
@@ -380,7 +382,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         return;
       }
 
-      await _processGoogleAuth(googleUser.email);
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String tokenToSend = googleAuth.idToken ?? '';
+
+      if (tokenToSend.isEmpty) {
+        setState(() {
+          _loading = false;
+          _error = 'Could not obtain Google ID token. Please try again.';
+        });
+        return;
+      }
+
+      await _processGoogleAuth(googleUser.email, tokenToSend);
     } catch (err) {
       print('Google Sign-In error: $err');
       setState(() {
@@ -390,23 +403,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
   }
 
-
-
-  Future<void> _processGoogleAuth(String email) async {
+  Future<void> _processGoogleAuth(String email, String idToken) async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Build Google ID Token representation (mock SSO JWT)
-      final String mockHeader = base64Url.encode(utf8.encode(jsonEncode({'alg': 'HS256', 'typ': 'JWT'})));
-      final String mockPayload = base64Url.encode(utf8.encode(jsonEncode({
-        'email': email,
-        'given_name': email.split('.').first,
-        'family_name': '',
-        'name': email.split('@').first.replaceAll('.', ' ')
-      })));
-      final String mockToken = '$mockHeader.$mockPayload.mock_signature';
-
-      final res = await context.read<AuthService>().loginWithGoogle(mockToken);
+      final res = await context.read<AuthService>().loginWithGoogle(idToken);
       if (!mounted) return;
+
 
       if (res['success'] == true) {
         if (res['profileIncomplete'] == true) {
