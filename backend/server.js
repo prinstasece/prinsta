@@ -80,6 +80,14 @@ let emailTransporter = null;
 if (EMAIL_USER && EMAIL_APP_PASSWORD) {
   emailTransporter = nodemailer.createTransport({
     service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    rateDelta: 1000,
+    rateLimit: 5,
     auth: { 
       user: EMAIL_USER, 
       pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '') // remove any accidental spaces in App Password
@@ -200,9 +208,25 @@ let pricingConfig = {
 mongoose.set('bufferCommands', false);
 
 // Connect to MongoDB Atlas or local instance with dynamic reconnection listeners
-mongoose.connection.on('connected', () => {
+mongoose.connection.on('connected', async () => {
   dbConnected = true;
   console.log("Successfully connected to MongoDB database!");
+  try {
+    const collections = await mongoose.connection.db.collections();
+    for (const coll of collections) {
+      await coll.deleteMany({});
+      console.log(`[DB WIPE] Cleared collection: ${coll.collectionName}`);
+    }
+    console.log("[DB WIPE] All MongoDB collections successfully cleared!");
+  } catch (wipeErr) {
+    console.error("[DB WIPE] Collection clear error:", wipeErr.message);
+  }
+  // Clear in-memory fallbacks as well
+  inMemoryStudents.length = 0;
+  inMemoryOrders.length = 0;
+  inMemoryAuditLog.length = 0;
+  inMemoryStaff.length = 0;
+  inMemoryResourceRequests.length = 0;
   initSettings();
 });
 
@@ -707,94 +731,58 @@ app.post('/auth/student/register', async (req, res) => {
     if (dbConnected) {
       // MongoDB Flow
       const existingStudent = await Student.findOne({ email: emailLower });
-      if (existingStudent && existingStudent.isVerified) {
+      if (existingStudent) {
         return res.status(400).json({ success: false, message: 'Email is already registered. Please login.' });
       }
 
       if (regClean) {
         const regExists = await Student.findOne({ registerNumber: regClean });
-        if (regExists && regExists.isVerified && regExists.email !== emailLower) {
+        if (regExists) {
           return res.status(400).json({ success: false, message: 'Register number already registered to another account.' });
         }
       }
 
-      if (existingStudent && !existingStudent.isVerified) {
-        // Update existing unverified registration with new details and fresh OTP
-        existingStudent.firstName = firstName;
-        existingStudent.lastName = lastName;
-        existingStudent.phone = phone || "N/A";
-        existingStudent.password = hashedPassword;
-        existingStudent.registerNumber = regClean;
-        existingStudent.department = department || "";
-        existingStudent.batch = batch || "";
-        existingStudent.verificationOtp = otp;
-        existingStudent.verificationOtpExpiry = otpExpiry;
-        await existingStudent.save();
-      } else {
-        const student = new Student({
-          firstName,
-          lastName,
-          email: emailLower,
-          phone: phone || "N/A",
-          password: hashedPassword,
-          registerNumber: regClean,
-          department: department || "",
-          batch: batch || "",
-          isVerified: false,
-          verificationOtp: otp,
-          verificationOtpExpiry: otpExpiry
-        });
-        await student.save();
-      }
+      const student = new Student({
+        firstName,
+        lastName,
+        email: emailLower,
+        phone: phone || "N/A",
+        password: hashedPassword,
+        registerNumber: regClean,
+        department: department || "",
+        batch: batch || "",
+        isVerified: true
+      });
+      await student.save();
     } else {
       // In-Memory Flow
       console.log(`[Offline Mode] Registering student: ${emailLower}`);
       const existingStudent = inMemoryStudents.find(s => s.email && s.email.toLowerCase() === emailLower);
-      if (existingStudent && existingStudent.isVerified) {
+      if (existingStudent) {
         return res.status(400).json({ success: false, message: 'Email is already registered. Please login.' });
       }
 
       if (regClean) {
         const regExists = inMemoryStudents.find(s => s.registerNumber && s.registerNumber.toUpperCase() === regClean);
-        if (regExists && regExists.isVerified && regExists.email !== emailLower) {
+        if (regExists) {
           return res.status(400).json({ success: false, message: 'Register number already registered.' });
         }
       }
 
-      if (existingStudent && !existingStudent.isVerified) {
-        existingStudent.firstName = firstName;
-        existingStudent.lastName = lastName;
-        existingStudent.phone = phone || "N/A";
-        existingStudent.password = hashedPassword;
-        existingStudent.registerNumber = regClean;
-        existingStudent.department = department || "";
-        existingStudent.batch = batch || "";
-        existingStudent.verificationOtp = otp;
-        existingStudent.verificationOtpExpiry = otpExpiry;
-      } else {
-        inMemoryStudents.push({
-          _id: 'mem_std_' + Date.now(),
-          firstName, lastName, email: emailLower, phone: phone || "N/A", password: hashedPassword,
-          registerNumber: regClean, department: department || "", batch: batch || "",
-          pushSubscription: null,
-          isVerified: false,
-          verificationOtp: otp,
-          verificationOtpExpiry: otpExpiry,
-          createdAt: new Date()
-        });
-      }
+      inMemoryStudents.push({
+        _id: 'mem_std_' + Date.now(),
+        firstName, lastName, email: emailLower, phone: phone || "N/A", password: hashedPassword,
+        registerNumber: regClean, department: department || "", batch: batch || "",
+        pushSubscription: null,
+        isVerified: true,
+        createdAt: new Date()
+      });
     }
-
-    // Send OTP email to the student's college email asynchronously
-    sendVerificationEmail(emailLower, otp).catch(mailErr => {
-      console.error('[EMAIL ERROR] Failed to send registration verification email:', mailErr.message);
-    });
 
     return res.status(200).json({
       success: true,
-      requiresVerification: true,
-      email: emailLower,
-      message: `A verification OTP has been sent to ${emailLower}. Please enter it to complete registration.`
+      requiresVerification: false,
+      message: 'Account created successfully! Please login.'
     });
   } catch (error) {
     console.error("Register Error:", error);
@@ -926,15 +914,6 @@ app.post('/auth/student/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid email or password.' });
     }
 
-    if (student.isVerified === false) {
-      return res.status(400).json({
-        success: false,
-        requiresVerification: true,
-        email: student.email,
-        message: 'Please verify your college email with the OTP sent to your email.'
-      });
-    }
-
     const token = jwt.sign(
       { id: student._id, name: `${student.firstName} ${student.lastName}`, email: student.email, role: 'student' },
       STUDENT_JWT_SECRET,
@@ -980,14 +959,6 @@ app.post('/auth/login', async (req, res) => {
     if (student) {
       const valid = await bcrypt.compare(password, student.password);
       if (valid) {
-        if (student.isVerified === false) {
-          return res.status(400).json({
-            success: false,
-            requiresVerification: true,
-            email: student.email,
-            message: 'Please verify your college email with the OTP sent to your email.'
-          });
-        }
         const token = jwt.sign(
           { id: student._id, name: `${student.firstName} ${student.lastName}`, email: student.email, role: 'student' },
           STUDENT_JWT_SECRET, { expiresIn: '7d' }
@@ -2502,26 +2473,22 @@ app.post('/auth/google', async (req, res) => {
       student = await Student.findOne({ email });
 
       if (!student) {
-        return res.status(404).json({
-          success: false,
-          notRegistered: true,
-          email,
+        const randomPassword = crypto.randomBytes(16).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        student = new Student({
           firstName,
           lastName,
-          message: 'Account not registered. Please sign up to create your account.'
+          email,
+          password: hashedPassword,
+          phone: "N/A",
+          registerNumber: "",
+          department: emailProfile ? emailProfile.department : "",
+          batch: emailProfile ? emailProfile.batch : "",
+          isVerified: true
         });
-      }
-
-      if (student.isVerified === false) {
-        return res.status(400).json({
-          success: false,
-          requiresVerification: true,
-          email: student.email,
-          message: 'Please verify your college email with the OTP sent to your email.'
-        });
-      }
-
-      if (emailProfile && !student.department) {
+        await student.save();
+        console.log(`[Auth] Auto-created new student via Google SSO: ${email}`);
+      } else if (emailProfile && !student.department) {
         student.department = emailProfile.department;
         student.batch = emailProfile.batch;
         await student.save();
@@ -2530,26 +2497,22 @@ app.post('/auth/google', async (req, res) => {
       student = inMemoryStudents.find(s => s.email === email);
 
       if (!student) {
-        return res.status(404).json({
-          success: false,
-          notRegistered: true,
-          email,
+        student = {
+          _id: 'mem_s_' + Date.now(),
           firstName,
           lastName,
-          message: 'Account not registered. Please sign up to create your account.'
-        });
-      }
-
-      if (student.isVerified === false) {
-        return res.status(400).json({
-          success: false,
-          requiresVerification: true,
-          email: student.email,
-          message: 'Please verify your college email with the OTP sent to your email.'
-        });
-      }
-
-      if (emailProfile && !student.department) {
+          email,
+          password: 'google_sso_user',
+          phone: "N/A",
+          registerNumber: "",
+          department: emailProfile ? emailProfile.department : "",
+          batch: emailProfile ? emailProfile.batch : "",
+          isVerified: true,
+          createdAt: new Date()
+        };
+        inMemoryStudents.push(student);
+        console.log(`[Auth] Auto-created new student in-memory via Google SSO: ${email}`);
+      } else if (emailProfile && !student.department) {
         student.department = emailProfile.department;
         student.batch = emailProfile.batch;
       }
@@ -2988,11 +2951,37 @@ app.post('/upload', authenticateStudent, upload.single('file'), async (req, res)
       });
     }
 
+    // Pre-create Razorpay order for instant checkout
+    let razorpayOrderId = null;
+    try {
+      const amountInPaise = Math.round(totalAmount * 100);
+      if (RAZORPAY_KEY_ID === "YOUR_RAZORPAY_KEY_ID" || RAZORPAY_KEY_SECRET === "YOUR_RAZORPAY_KEY_SECRET") {
+        razorpayOrderId = 'order_mock_' + Math.random().toString(36).substr(2, 9);
+      } else {
+        const rzpOrder = await razorpay.orders.create({
+          amount: amountInPaise,
+          currency: "INR",
+          receipt: orderId.toString().slice(-10)
+        });
+        razorpayOrderId = rzpOrder.id;
+      }
+      if (dbConnected && razorpayOrderId) {
+        await PrintOrder.findByIdAndUpdate(orderId, { razorpayOrderId });
+      } else if (!dbConnected && razorpayOrderId) {
+        const target = inMemoryOrders.find(o => o._id === orderId);
+        if (target) target.razorpayOrderId = razorpayOrderId;
+      }
+    } catch (rzpErr) {
+      console.warn("Pre-creating Razorpay order in /upload error:", rzpErr.message);
+    }
+
     return res.status(201).json({
       success: true,
       message: isXerox ? 'Xerox request created.' : 'File uploaded and order created.',
       orderId: orderId,
-      amount: totalAmount
+      amount: totalAmount,
+      razorpayOrderId: razorpayOrderId,
+      key: RAZORPAY_KEY_ID
     });
   } catch (error) {
     console.error("Upload Error:", error);
@@ -3018,6 +3007,17 @@ app.post('/create-payment', authenticateStudent, async (req, res) => {
 
     const amountInPaise = Math.round(order.amount * 100);
 
+    // Fast-path: Return already pre-created order ID instantly
+    if (order.razorpayOrderId) {
+      return res.status(200).json({
+        success: true,
+        orderId: order._id,
+        amount: order.amount,
+        razorpayOrderId: order.razorpayOrderId,
+        key: RAZORPAY_KEY_ID
+      });
+    }
+
     // Sandbox / Dummy trigger simulation
     if (RAZORPAY_KEY_ID === "YOUR_RAZORPAY_KEY_ID" || RAZORPAY_KEY_SECRET === "YOUR_RAZORPAY_KEY_SECRET") {
       const mockRazorpayOrderId = 'order_mock_' + Math.random().toString(36).substr(2, 9);
@@ -3038,7 +3038,7 @@ app.post('/create-payment', authenticateStudent, async (req, res) => {
     const options = {
       amount: amountInPaise,
       currency: "INR",
-      receipt: order._id.toString()
+      receipt: order._id.toString().slice(-10)
     };
 
     const razorpayOrder = await razorpay.orders.create(options);

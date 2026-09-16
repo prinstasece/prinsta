@@ -215,7 +215,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
     if (result['success'] == true) {
-      _showVerificationDialog(_emailCtrl.text.trim());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created successfully! Please log in.'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      Navigator.pop(context);
     } else {
       setState(() => _error = result['message'] ?? 'Registration failed.');
     }
