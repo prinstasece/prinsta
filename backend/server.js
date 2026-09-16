@@ -76,44 +76,114 @@ const ADMIN_PASSWORD_ENV = process.env.ADMIN_PASSWORD || 'sece@print';
 const EMAIL_USER = process.env.EMAIL_USER || 'prinstasece1@gmail.com';
 const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD || 'igxymgksdzclvqnc';
 
-let emailTransporter = null;
 const dns = require('dns');
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
 
-if (EMAIL_USER && EMAIL_APP_PASSWORD) {
-  emailTransporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+// Dynamically resolves smtp.gmail.com to IPv4 to prevent ENETUNREACH in containers
+async function getEmailTransporter() {
+  if (!EMAIL_USER || !EMAIL_APP_PASSWORD) return null;
+  const dnsPromises = require('dns').promises;
+  let targetHost = 'smtp.gmail.com';
+  try {
+    const ipv4Addresses = await dnsPromises.resolve4('smtp.gmail.com');
+    if (ipv4Addresses && ipv4Addresses.length > 0) {
+      targetHost = ipv4Addresses[0];
+    }
+  } catch (dnsErr) {
+    console.warn(`[EMAIL] IPv4 DNS query fallback: ${dnsErr.message}`);
+  }
+
+  return nodemailer.createTransport({
+    host: targetHost,
     port: 587,
-    secure: false,       // STARTTLS (upgrades connection after connect)
-    family: 4,           // Force IPv4
-    lookup: (hostname, options, callback) => {
-      dns.lookup(hostname, { family: 4 }, callback);
-    },
+    secure: false, // STARTTLS
     auth: {
       user: EMAIL_USER.trim(),
       pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '')
     },
     tls: {
+      servername: 'smtp.gmail.com',
       rejectUnauthorized: false,
       minVersion: 'TLSv1.2'
-    }
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000
   });
-  
-  // Verify the transporter connection on startup
-  emailTransporter.verify((err) => {
-    if (err) {
+}
+
+// Resilient email delivery function with multi-IPv4 retry
+async function sendMailSafe(mailOptions) {
+  if (!EMAIL_USER || !EMAIL_APP_PASSWORD) {
+    console.warn('[EMAIL] Not sending email - credentials not set.');
+    return null;
+  }
+
+  const dnsPromises = require('dns').promises;
+  let ips = [];
+  try {
+    ips = await dnsPromises.resolve4('smtp.gmail.com');
+  } catch (e) {
+    console.warn('[EMAIL] DNS resolution fallback:', e.message);
+  }
+  if (!ips || ips.length === 0) {
+    ips = ['142.250.141.108', '192.178.211.108', 'smtp.gmail.com'];
+  }
+
+  let lastError = null;
+  for (const ip of ips) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: ip,
+        port: 587,
+        secure: false,
+        auth: {
+          user: EMAIL_USER.trim(),
+          pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '')
+        },
+        tls: {
+          servername: 'smtp.gmail.com',
+          rejectUnauthorized: false,
+          minVersion: 'TLSv1.2'
+        },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000
+      });
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`[EMAIL] Email delivered to ${mailOptions.to} via IPv4 (${ip}) - MsgID: ${info.messageId}`);
+      return info;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[EMAIL] Delivery via IP ${ip} failed: ${err.message}. Trying next IPv4...`);
+    }
+  }
+
+  console.error(`[EMAIL ERROR] All delivery attempts failed for ${mailOptions.to}:`, lastError ? lastError.message : 'Unknown error');
+  throw lastError;
+}
+
+// Verify transporter connection on startup
+(async function verifyEmailOnStartup() {
+  if (EMAIL_USER && EMAIL_APP_PASSWORD) {
+    try {
+      const transporter = await getEmailTransporter();
+      if (transporter) {
+        await transporter.verify();
+        console.log(`[EMAIL] Transporter connected successfully via IPv4! Using account: ${EMAIL_USER}`);
+      }
+    } catch (err) {
       console.error('[EMAIL] Verification failed. Error details:', err.message);
       console.warn('[EMAIL] Configured user:', EMAIL_USER);
-      console.warn('[EMAIL] Make sure 2-Step Verification is active and you generated a 16-character Google App Password.');
-    } else {
-      console.log(`[EMAIL] Transporter connected successfully! Using account: ${EMAIL_USER}`);
     }
-  });
-} else {
-  console.warn('[EMAIL] EMAIL_USER / EMAIL_APP_PASSWORD are not fully configured in your .env file. OTPs and reports will print to the server console.');
-}
+  } else {
+    console.warn('[EMAIL] EMAIL_USER / EMAIL_APP_PASSWORD are not fully configured in your .env file.');
+  }
+})();
+
 
 // OTP rate limit map: max 3 requests per email per hour
 // Shape: Map<email, { count: number, windowStart: timestamp }>
@@ -1449,31 +1519,28 @@ app.post('/staff/close-shop', authenticateStaff, async (req, res) => {
 
     const adminEmail = ADMIN_REPORT_EMAIL;
 
-    if (emailTransporter) {
-      try {
-        await emailTransporter.sendMail({
-          from: `"Printsta Close Shop Alert" <${EMAIL_USER}>`,
-          to: adminEmail,
-          subject: `Printsta Daily Report — ${reportDateStr}`,
-          text: `Hello Admin,\n\nThe print shop has been closed for today by staff member ${staffName}.\n\nAttached are today's detailed print collections reports in both protected Excel (.xlsx) and PDF (.pdf) formats.\n\nTotal Collected Today: Rs. ${totalAmount}\n\nBest regards,\nPrintsta Automated System`,
-          attachments: [
-            {
-              filename: `Printsta_Daily_Report_${new Date().toISOString().split('T')[0]}.xlsx`,
-              content: excelBuffer
-            },
-            {
-              filename: `Printsta_Daily_Report_${new Date().toISOString().split('T')[0]}.pdf`,
-              content: pdfBuffer
-            }
-          ]
-        });
-        console.log(`[Shop Close] Sent daily Excel and PDF reports to ${adminEmail}`);
-      } catch (mailErr) {
-        console.error('[Shop Close] Failed to send email daily report:', mailErr);
-      }
-    } else {
-      console.warn('[Shop Close] Email transporter not configured.');
+    try {
+      await sendMailSafe({
+        from: `"Printsta Close Shop Alert" <${EMAIL_USER}>`,
+        to: adminEmail,
+        subject: `Printsta Daily Report — ${reportDateStr}`,
+        text: `Hello Admin,\n\nThe print shop has been closed for today by staff member ${staffName}.\n\nAttached are today's detailed print collections reports in both protected Excel (.xlsx) and PDF (.pdf) formats.\n\nTotal Collected Today: Rs. ${totalAmount}\n\nBest regards,\nPrintsta Automated System`,
+        attachments: [
+          {
+            filename: `Printsta_Daily_Report_${new Date().toISOString().split('T')[0]}.xlsx`,
+            content: excelBuffer
+          },
+          {
+            filename: `Printsta_Daily_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+            content: pdfBuffer
+          }
+        ]
+      });
+      console.log(`[Shop Close] Sent daily Excel and PDF reports to ${adminEmail}`);
+    } catch (mailErr) {
+      console.error('[Shop Close] Failed to send email daily report:', mailErr.message);
     }
+
 
     // Close the shop globally
     isShopOpen = false;
@@ -1694,6 +1761,7 @@ app.post('/admin/create-staff', authenticateAdmin, async (req, res) => {
 
 // Helper: send registration verification email via nodemailer
 async function sendVerificationEmail(toEmail, otp) {
+  console.log(`[OTP DISPATCH] Registration OTP generated for ${toEmail}: ${otp}`);
   const html = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 0; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
       <!-- Header Banner -->
@@ -1745,27 +1813,21 @@ async function sendVerificationEmail(toEmail, otp) {
       </div>
     </div>
   `;
-  if (emailTransporter) {
-    console.log(`[EMAIL] Sending verification email to ${toEmail}...`);
-    try {
-      const info = await emailTransporter.sendMail({
-        from: `"Printsta SECE" <${EMAIL_USER}>`,
-        to: toEmail,
-        subject: 'Printsta — Registration Verification OTP',
-        html
-      });
-      console.log(`[EMAIL] Verification email sent successfully to ${toEmail}. Message ID: ${info.messageId}`);
-    } catch (sendErr) {
-      console.error(`[EMAIL ERROR] Failed to deliver verification email to ${toEmail}:`, sendErr.message);
-      console.log(`[FALLBACK LOG] Registration Verification OTP for ${toEmail}: ${otp}`);
-    }
-  } else {
-    console.log(`[DEV] Registration Verification OTP for ${toEmail}: ${otp}`);
+  try {
+    await sendMailSafe({
+      from: `"Printsta SECE" <${EMAIL_USER}>`,
+      to: toEmail,
+      subject: 'Printsta — Registration Verification OTP',
+      html
+    });
+  } catch (sendErr) {
+    console.error(`[EMAIL ERROR] Verification email delivery failed for ${toEmail}:`, sendErr.message);
   }
 }
 
 // Helper: send OTP email via nodemailer
 async function sendOtpEmail(toEmail, otp) {
+  console.log(`[OTP DISPATCH] Password Reset OTP generated for ${toEmail}: ${otp}`);
   const html = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 0; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
       <!-- Header Banner -->
@@ -1817,20 +1879,18 @@ async function sendOtpEmail(toEmail, otp) {
       </div>
     </div>
   `;
-  if (emailTransporter) {
-    console.log(`[EMAIL] Sending OTP email to ${toEmail}...`);
-    const info = await emailTransporter.sendMail({
+  try {
+    await sendMailSafe({
       from: `"Printsta SECE" <${EMAIL_USER}>`,
       to: toEmail,
       subject: 'Printsta — Password Reset OTP',
       html
     });
-    console.log(`[EMAIL] OTP email sent successfully to ${toEmail}. Message ID: ${info.messageId}`);
-  } else {
-    // Dev fallback: print OTP to server console (never to client)
-    console.log(`[DEV] OTP for ${toEmail} — do NOT log in production: ${otp}`);
+  } catch (sendErr) {
+    console.error(`[EMAIL ERROR] Password reset email delivery failed for ${toEmail}:`, sendErr.message);
   }
 }
+
 
 // POST /auth/forgot-password — generate & send OTP
 app.post('/auth/forgot-password', async (req, res) => {
@@ -3177,7 +3237,7 @@ async function generateToken() {
 
 // Helper function: send order confirmation and receipt email
 async function sendOrderReceiptEmail(toEmail, order) {
-  if (!emailTransporter || !toEmail) return;
+  if (!toEmail) return;
   try {
     const html = `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);">
@@ -3236,8 +3296,8 @@ async function sendOrderReceiptEmail(toEmail, order) {
       </div>
     `;
 
-    await emailTransporter.sendMail({
-      from: '"Printsta SECE" <prinstasece1@gmail.com>',
+    await sendMailSafe({
+      from: `"Printsta SECE" <${EMAIL_USER}>`,
       to: toEmail,
       subject: `Printsta Order Confirmed - Token #${order.tokenNumber}`,
       html: html
@@ -3246,6 +3306,7 @@ async function sendOrderReceiptEmail(toEmail, order) {
     console.error('[RECEIPT EMAIL ERROR]:', mailErr.message);
   }
 }
+
 
 // 3. Verify Payment Signature & Assign Daily Token Number
 app.post('/verify-payment', authenticateStudent, async (req, res) => {
