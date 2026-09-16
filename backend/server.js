@@ -84,22 +84,17 @@ if (dns.setDefaultResultOrder) {
 
 if (EMAIL_USER && EMAIL_APP_PASSWORD) {
   emailTransporter = nodemailer.createTransport({
-    service: 'gmail',
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    family: 4,
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
-    rateDelta: 1000,
-    rateLimit: 5,
-    auth: { 
-      user: EMAIL_USER, 
-      pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '') // remove any accidental spaces in App Password
+    port: 587,
+    secure: false,       // STARTTLS (upgrades connection after connect)
+    family: 4,           // Force IPv4 to avoid ENETUNREACH on IPv6
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_APP_PASSWORD.trim().replace(/\s/g, '')
     },
-    tls: { 
-      rejectUnauthorized: false
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
     }
   });
   
@@ -221,24 +216,24 @@ mongoose.set('bufferCommands', false);
 mongoose.connection.on('connected', async () => {
   dbConnected = true;
   console.log("Successfully connected to MongoDB database!");
+  // Load existing pricing settings from DB (do NOT wipe any data)
   try {
-    const collections = await mongoose.connection.db.collections();
-    for (const coll of collections) {
-      await coll.deleteMany({});
-      console.log(`[DB WIPE] Cleared collection: ${coll.collectionName}`);
+    const Settings = mongoose.model('Settings');
+    const saved = await Settings.findOne({});
+    if (saved) {
+      pricingConfig.bwSingleRate   = saved.bwSingleRate   ?? pricingConfig.bwSingleRate;
+      pricingConfig.bwDoubleRate   = saved.bwDoubleRate   ?? pricingConfig.bwDoubleRate;
+      pricingConfig.colorSingleRate = saved.colorSingleRate ?? pricingConfig.colorSingleRate;
+      pricingConfig.colorDoubleRate = saved.colorDoubleRate ?? pricingConfig.colorDoubleRate;
+      console.log("[Settings] Loaded pricing config from DB.");
+    } else {
+      initSettings();
     }
-    console.log("[DB WIPE] All MongoDB collections successfully cleared!");
-  } catch (wipeErr) {
-    console.error("[DB WIPE] Collection clear error:", wipeErr.message);
+  } catch (e) {
+    console.warn("[Settings] Could not load pricing config:", e.message);
   }
-  // Clear in-memory fallbacks as well
-  inMemoryStudents.length = 0;
-  inMemoryOrders.length = 0;
-  inMemoryAuditLog.length = 0;
-  inMemoryStaff.length = 0;
-  inMemoryResourceRequests.length = 0;
-  initSettings();
 });
+
 
 mongoose.connection.on('disconnected', () => {
   dbConnected = false;
