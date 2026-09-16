@@ -133,6 +133,10 @@ webpush.setVapidDetails(
 // Initialize Google OAuth client
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+// Set of emails admin has permanently deleted — prevents Google SSO re-creation
+const adminDeletedEmails = new Set();
+
+
 // Initialize Razorpay SDK instance
 const razorpay = new Razorpay({
   key_id: RAZORPAY_KEY_ID,
@@ -296,6 +300,8 @@ const studentSchema = new mongoose.Schema({
   isVerified:       { type: Boolean, default: true },
   verificationOtp:  { type: String, default: null },
   verificationOtpExpiry: { type: Date, default: null },
+  isDeleted:        { type: Boolean, default: false }, // Admin soft-delete flag
+  deletedAt:        { type: Date,   default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -2495,106 +2501,104 @@ app.post('/auth/google', async (req, res) => {
 
     let payload = null;
 
-    // Verify Google ID Token or bypass if mock signature is detected
-    if (token.endsWith('.mock_signature') || token.includes('mock_signature')) {
-      console.log("[Auth] Detected mock SSO token, bypassing Google API verification");
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-        }
-      } catch (decodeErr) {
-        console.error("Mock token decode failed:", decodeErr);
-      }
-    } else {
-      try {
-        const ticket = await googleClient.verifyIdToken({
-          idToken: token,
-          audience: GOOGLE_CLIENT_ID
-        });
-        payload = ticket.getPayload();
-      } catch (verifyErr) {
-        console.warn("Google API verification failed. Attempting local token decoding:", verifyErr.message);
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-          }
-        } catch (decodeErr) {
-          console.error("Local token decode failed:", decodeErr);
-        }
-      }
+    // ONLY accept real Google tokens — no mock bypass allowed
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: token,
+        audience: GOOGLE_CLIENT_ID
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      console.warn("[Auth] Google token verification failed:", verifyErr.message);
+      return res.status(401).json({ success: false, message: 'Google authentication failed. Please try again.' });
     }
 
     if (!payload || !payload.email) {
       return res.status(400).json({ success: false, message: 'Google Authentication verification failed.' });
     }
 
-    const email = payload.email;
+    const email = payload.email.toLowerCase().trim();
 
     // Server-side: SECE email domain enforcement for Google login
-    if (!email.toLowerCase().endsWith('@sece.ac.in')) {
+    if (!email.endsWith('@sece.ac.in')) {
       return res.status(403).json({
         success: false,
         message: 'Only SECE college Google accounts (@sece.ac.in) are allowed. Please sign in with your college Google account.'
       });
     }
 
-    const firstName = payload.given_name || payload.name || "GoogleUser";
-    const lastName = payload.family_name || "";
+    // Block admin-deleted accounts from re-logging in via Google
+    if (adminDeletedEmails.has(email)) {
+      return res.status(403).json({
+        success: false,
+        accountDeleted: true,
+        message: 'This account has been removed by the admin. Please contact the administrator or create a new account.'
+      });
+    }
 
-    // Auto-extract department and batch from SECE email
-    const emailProfile = extractFromSECEEmail(email);
+    const firstName = payload.given_name || payload.name || "Student";
+    const lastName = payload.family_name || "";
 
     let student = null;
 
     if (dbConnected) {
       student = await Student.findOne({ email });
 
-      if (!student) {
-        const randomPassword = crypto.randomBytes(16).toString('hex');
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
-        student = new Student({
-          firstName,
-          lastName,
-          email,
-          password: hashedPassword,
-          phone: "N/A",
-          registerNumber: "",
-          department: emailProfile ? emailProfile.department : "",
-          batch: emailProfile ? emailProfile.batch : "",
-          isVerified: true
+      // Check if found record is soft-deleted
+      if (student && student.isDeleted) {
+        adminDeletedEmails.add(email); // Cache it
+        return res.status(403).json({
+          success: false,
+          accountDeleted: true,
+          message: 'This account has been removed by the admin. Please contact the administrator.'
         });
-        await student.save();
-        console.log(`[Auth] Auto-created new student via Google SSO: ${email}`);
-      } else if (emailProfile && !student.department) {
-        student.department = emailProfile.department;
-        student.batch = emailProfile.batch;
-        await student.save();
       }
     } else {
       student = inMemoryStudents.find(s => s.email === email);
-
-      if (!student) {
-        student = {
-          _id: 'mem_s_' + Date.now(),
-          firstName,
-          lastName,
-          email,
-          password: 'google_sso_user',
-          phone: "N/A",
-          registerNumber: "",
-          department: emailProfile ? emailProfile.department : "",
-          batch: emailProfile ? emailProfile.batch : "",
-          isVerified: true,
-          createdAt: new Date()
-        };
-        inMemoryStudents.push(student);
-        console.log(`[Auth] Auto-created new student in-memory via Google SSO: ${email}`);
-      } else if (emailProfile && !student.department) {
-        student.department = emailProfile.department;
-        student.batch = emailProfile.batch;
+      if (student && student.isDeleted) {
+        return res.status(403).json({
+          success: false,
+          accountDeleted: true,
+          message: 'This account has been removed by the admin. Please contact the administrator.'
+        });
       }
+    }
+
+    // NEW USER — do NOT auto-create. Redirect to registration form.
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        notRegistered: true,
+        email,
+        firstName,
+        lastName,
+        message: 'No account found for this Google account. Please register first to continue.'
+      });
+    }
+
+    // Existing user — check verification
+    if (!student.isVerified) {
+      // Resend OTP and ask them to verify
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
+      student.verificationOtp = otp;
+      student.verificationOtpExpiry = otpExpiry;
+      if (dbConnected) await student.save();
+      sendVerificationEmail(email, otp).catch(e => console.error('[EMAIL ERROR]:', e.message));
+      return res.status(403).json({
+        success: false,
+        requiresVerification: true,
+        email,
+        message: 'Your account is not verified yet. A new OTP has been sent to your email.'
+      });
+    }
+
+    // Auto-fill missing department/batch from email pattern
+    const emailProfile = extractFromSECEEmail(email);
+    if (emailProfile && !student.department) {
+      student.department = emailProfile.department;
+      student.batch = emailProfile.batch;
+      if (dbConnected) await student.save();
     }
 
     const profileIncomplete = !student.registerNumber;
@@ -2617,6 +2621,7 @@ app.post('/auth/google', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
+
 
 // Get Student Profile
 app.get('/auth/student/me', authenticateStudent, async (req, res) => {
@@ -3726,6 +3731,11 @@ app.delete('/admin/students/:id', authenticateAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Student account not found.' });
     }
 
+    // Permanently block this email from re-registering via Google SSO
+    if (deletedStudent.email) {
+      adminDeletedEmails.add(deletedStudent.email.toLowerCase().trim());
+    }
+
     console.log(`[ADMIN] Deleted student account: ${deletedStudent.email} (${deletedStudent._id || id})`);
 
     return res.status(200).json({
@@ -3742,9 +3752,13 @@ app.delete('/admin/students/:id', authenticateAdmin, async (req, res) => {
 app.delete('/admin/students/all', authenticateAdmin, async (req, res) => {
   try {
     if (dbConnected) {
+      // Collect all emails before deleting so we can block them
+      const allStudents = await Student.find({}, { email: 1 });
+      allStudents.forEach(s => { if (s.email) adminDeletedEmails.add(s.email.toLowerCase().trim()); });
       const result = await Student.deleteMany({});
       return res.status(200).json({ success: true, deletedCount: result.deletedCount, message: `Deleted ${result.deletedCount} student accounts.` });
     } else {
+      inMemoryStudents.forEach(s => { if (s.email) adminDeletedEmails.add(s.email.toLowerCase().trim()); });
       const count = inMemoryStudents.length;
       inMemoryStudents.length = 0;
       return res.status(200).json({ success: true, deletedCount: count, message: `Deleted ${count} student accounts (in-memory).` });
@@ -3753,6 +3767,7 @@ app.delete('/admin/students/all', authenticateAdmin, async (req, res) => {
     console.error("Delete All Students Error:", error);
     return res.status(500).json({ success: false, message: 'Server processing error.' });
   }
+
 });
 
 

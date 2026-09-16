@@ -208,7 +208,19 @@
   <script>
     const API_BASE = 'https://printsta-backend.onrender.com';
 
+    // ── Pre-fill form from URL params (e.g. redirected from Google login) ──
+    (function prefillFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const email     = params.get('email');
+      const firstName = params.get('firstName');
+      const lastName  = params.get('lastName');
+      if (email)     { const el = document.getElementById('email');     if (el) { el.value = email;     el.dispatchEvent(new Event('input')); } }
+      if (firstName) { const el = document.getElementById('firstName'); if (el) el.value = firstName; }
+      if (lastName)  { const el = document.getElementById('lastName');  if (el) el.value = lastName;  }
+    })();
+
     // ── Alert helper ──
+
     function showAlert(message, type = 'success') {
       const popup = document.getElementById('alertPopup');
       popup.innerText = message;
